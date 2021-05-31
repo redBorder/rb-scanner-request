@@ -19,4 +19,13 @@ type APIClientConfig struct {
 	//Logger     *logrus.Entry // Logger to use
 	HTTPClient *http.Client  // HTTP Client to wrap
 }
+
+type scanOptions struct {
+  target string
+  sensors string
+  ports string
+}
+
+var HostDiscovery string = "/opt/rb/bin/rb_host_discovery.sh"
+var VulnerabiliesScan string = "opt/rb/bin/rb_nmap.sh"
 //

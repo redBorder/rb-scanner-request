@@ -81,6 +81,21 @@ func (c *APIClient) GetScanRequest() (response string, err error){
 
 }
 
+func (c *APIClient) UpdateScanRequest(scan_history_id string, sensor string){
+  api_action := "update_request?"
+  api_url_request := c.config.URL + api_action + "auth_token=" + c.config.Auth_token
+
+  httpReq, err := http.NewRequest("GET", api_url_request, nil)
+  if err != nil {
+  }
+  httpReq.Header.Set("Content-Type", "application/json")
+
+  rawResponse, err := c.config.HTTPClient.Do(httpReq)
+  if err != nil {
+  }
+  defer rawResponse.Body.Close()
+}
+
 // func (c *APIClient) UpdateScanRequest() (response string, err error){
 //
 // }
