@@ -3,11 +3,12 @@ package main
 import (
 	//"bytes"
 	"crypto/tls"
-	// "encoding/json"
+
 	"errors"
 	"io/ioutil"
 	"net/http"
-
+  "fmt"
+  "encoding/json"
 	//"github.com/sirupsen/logrus"
 )
 
@@ -54,31 +55,43 @@ func NewAPIClient(config APIClientConfig) *APIClient {
 	return c
 }
 
-func (c *APIClient) GetScanRequest() (response string, err error){
-  api_action := "scanner_request?"
-  api_url_request := c.config.URL + api_action + "auth_token=" + c.config.Auth_token
+func (c *APIClient) GetScanRequest() (response Response, err error){
+
+  res := Response{}
+  apiAction := "scanner_request?"
+  api_url_request := c.config.URL + apiAction + "auth_token=" + c.config.Auth_token
 
   //bufferReq := bytes.NewBuffer(marshalledReq)
 	httpReq, err := http.NewRequest("GET", api_url_request, nil)
 	if err != nil {
-		return "", err
+		return res, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	rawResponse, err := c.config.HTTPClient.Do(httpReq)
 	if err != nil {
-		return "", err
+		return res, err
 	}
   defer rawResponse.Body.Close()
 	if rawResponse.StatusCode >= 400 {
-		return "ya", errors.New("Got status code: " + rawResponse.Status)
+		return res, errors.New("Got status code: " + rawResponse.Status)
 	}
 
-  bodyBytes, err := ioutil.ReadAll(rawResponse.Body)
-  bodyString := string(bodyBytes)
+  bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
+  if err != nil {
+    return res, err
+  }
 
-  return bodyString, err
 
+  err = json.Unmarshal(bufferResponse, &res)
+  // fmt.Println(res)
+
+  //bodyBytes, err := ioutil.ReadAll(rawResponse.Body)
+  bodyString := string(bufferResponse)
+
+  fmt.Println(bodyString)
+
+  return res, err
 }
 
 func (c *APIClient) UpdateScanRequest(scan_history_id string, sensor string){

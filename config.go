@@ -26,6 +26,21 @@ type scanOptions struct {
   ports string
 }
 
+// response structure for scan request
+type Options struct {
+  Id int `json:"id"`
+  Sensors   []string `json:"sensors"`
+  ScanType   int `json:"scan_type"`
+  Target   []string `json:"target"`
+  Status   string `json:"status"`
+  RunAt   string `json:"run_at"`
+  ScanHistoryId int `json:"scan_history_id"`
+}
+
+type Response struct{
+  Query bool `json:"query"`
+  ScanRequest Options `json:"scan_request"`
+}
 var HostDiscovery string = "/opt/rb/bin/rb_host_discovery.sh"
-var VulnerabiliesScan string = "opt/rb/bin/rb_nmap.sh"
+var VulnerabiliesScan string = "/opt/rb/bin/rb_nmap.sh"
 //

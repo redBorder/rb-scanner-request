@@ -90,7 +90,7 @@ func main(){
     fmt.Println(err)
   } else {
     fmt.Println(request)
+    RunScan(request)
   }
-
 
 }
