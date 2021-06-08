@@ -13,18 +13,7 @@ func RunScan(scan Response){
 
   switch scan.ScanRequest.ScanType{
   case 1:
-    // script := HostDiscovery + " -t='[\"" + scan.ScanRequest.Target + "\"]' -r=" + strconv.Itoa(scan.ScanRequest.ScanHistoryId) + " -d='false'"
-    // fmt.Println(script)
-    // cmd := exec.Command(HostDiscovery, "-t=", "[\"" + scan.ScanRequest.Target + "\"]", "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId), "-d=", "false")
-    // cmd.Stdout = os.Stdout
-    // err := cmd.Start()
-    //
-    // if err != nil {
-    //   fmt.Println(err)
-    // }
 
-    //script := HostDiscovery + " -t='[\"" + scan.ScanRequest.Target + "\"]' -r=" + strconv.Itoa(scan.ScanRequest.ScanHistoryId) + " -d='false'"
-    //fmt.Println(script)
     fmt.Println(scan.ScanRequest.Target)
     cmd := exec.Command(HostDiscovery, "-t=", FormatTarget(scan.ScanRequest.Target), "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId), "-d=", "false")
     cmd.Stdout = os.Stdout
@@ -41,6 +30,7 @@ func RunScan(scan Response){
 
   //cmd.Start()
 }
+
 
 func FormatTarget(target []string) (string) {
   target_string := "["

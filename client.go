@@ -1,9 +1,8 @@
 package main
 
 import (
-	//"bytes"
+	"bytes"
 	"crypto/tls"
-
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -94,21 +93,26 @@ func (c *APIClient) GetScanRequest() (response Response, err error){
   return res, err
 }
 
-func (c *APIClient) UpdateScanRequest(scan_history_id string, sensor string){
-  api_action := "update_request?"
+
+
+func (c *APIClient) UpdateScanRequest(scan_request_id int, sensor_uuid string){
+
+	json_parameter, _ := json.Marshal(SensorRequestJson{Scan_request_id: scan_request_id, Sensor_uuid: sensor_uuid })
+
+	api_action := "remove_sensor?"
   api_url_request := c.config.URL + api_action + "auth_token=" + c.config.Auth_token
 
-  httpReq, err := http.NewRequest("GET", api_url_request, nil)
-  if err != nil {
-  }
-  httpReq.Header.Set("Content-Type", "application/json")
 
-  rawResponse, err := c.config.HTTPClient.Do(httpReq)
+	req, err := http.NewRequest(http.MethodPost, api_url_request, bytes.NewBuffer([]byte(json_parameter)))
+	if err != nil {
+			fmt.Println("Error is req: ", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	rawResponse, err := c.config.HTTPClient.Do(req)
   if err != nil {
+		fmt.Println(err)
   }
-  defer rawResponse.Body.Close()
+
+	defer rawResponse.Body.Close()
 }
-
-// func (c *APIClient) UpdateScanRequest() (response string, err error){
-//
-// }

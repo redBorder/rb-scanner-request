@@ -43,7 +43,7 @@ func init(){
 	debug = flag.Bool("debug", false, "Show debug info")
   hash = flag.String("hash", "00000000-0000-0000-0000-000000000000", "Hash to use in the request")
 
-	apiURL = flag.String("url", "http://10.0.203.100/api/v1/scanner/", "Protocol and hostname to connect")
+	apiURL = flag.String("url", "https://10.0.203.100/api/v1/scanner/", "Protocol and hostname to connect")
   auth_token = flag.String("auth-token", "4u29xzXa5vMVJd9fxNsW1Bc5eBrmRmu29ooUGqKr", "Authentication token")
 
 	sleepTime = flag.Int("sleep", 300, "Time between requests in seconds")
@@ -90,7 +90,28 @@ func main(){
     fmt.Println(err)
   } else {
     fmt.Println(request)
+
+		if checkSensor(request.ScanRequest.Sensors){
+			fmt.Println("\nThis request is mine")
+			//RunScan(request)
+
+			apiClient.UpdateScanRequest(request.ScanRequest.Id, UUID)
+		} else {
+			fmt.Println("\nThis request is not mine")
+		}
+
     RunScan(request)
   }
+}
 
+func checkSensor(sensors []string)(bool){
+	isInRequest := false
+	fmt.Println("sensor taken from config: " + UUID)
+
+	for sensor := range sensors {
+		if sensors[sensor] == UUID {
+			isInRequest = true
+		}
+	}
+	return isInRequest
 }
