@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"errors"
-	"io/ioutil"
+	//"io/ioutil"
 	"net/http"
   "fmt"
   "encoding/json"
@@ -76,23 +76,18 @@ func (c *APIClient) GetScanRequest() (response Response, err error){
 		return res, errors.New("Got status code: " + rawResponse.Status)
 	}
 
-  bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
-  if err != nil {
-    return res, err
-  }
+  // bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
+  // if err != nil {
+  //   return res, err
+  // }
 
-
-  err = json.Unmarshal(bufferResponse, &res)
-  // fmt.Println(res)
-
-  //bodyBytes, err := ioutil.ReadAll(rawResponse.Body)
-  bodyString := string(bufferResponse)
-
-  fmt.Println(bodyString)
+  // err = json.Unmarshal(bufferResponse, &res)
+  // bodyString := string(bufferResponse)
+	//
+  // fmt.Println(bodyString)
 
   return res, err
 }
-
 
 
 func (c *APIClient) UpdateScanRequest(scan_request_id int, sensor_uuid string){

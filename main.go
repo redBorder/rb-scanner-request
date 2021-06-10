@@ -6,7 +6,7 @@ import (
 	//"os"
 	"runtime"
 	// "strings"
-	// "time"
+	 "time"
   "fmt"
 
 	// "github.com/Sirupsen/logrus"
@@ -46,7 +46,7 @@ func init(){
 	apiURL = flag.String("url", "https://10.0.203.100/api/v1/scanner/", "Protocol and hostname to connect")
   auth_token = flag.String("auth-token", "4u29xzXa5vMVJd9fxNsW1Bc5eBrmRmu29ooUGqKr", "Authentication token")
 
-	sleepTime = flag.Int("sleep", 300, "Time between requests in seconds")
+	sleepTime = flag.Int("sleep", 60, "Time between requests in seconds")
 	deviceAlias = flag.String("type", "", "Type of the registering device")
 	insecure = flag.Bool("no-check-certificate", false, "Dont check if the certificate is valid")
 	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
@@ -72,7 +72,7 @@ func init(){
 }
 
 func main(){
-  apiClient := NewAPIClient(
+	apiClient := NewAPIClient(
 		APIClientConfig{
 			URL:        *apiURL,
 			Hash:       *hash,
@@ -84,7 +84,17 @@ func main(){
 		},
 	)
 
-  request, err := apiClient.GetScanRequest()
+	daemonize()
+	for{
+		scanRequest(apiClient)
+		// wait until the next request
+		time.Sleep(time.Duration(*sleepTime) * time.Second)
+	}
+}
+
+func scanRequest(apiClient *APIClient,){
+
+	request, err := apiClient.GetScanRequest()
 
   if err != nil {
     fmt.Println(err)
@@ -95,23 +105,17 @@ func main(){
 			fmt.Println("\nThis request is mine")
 			//RunScan(request)
 
+			if checkDate(request.ScanRequest.RunAt){
+				fmt.Println("Its time for this request")
+				RunScan(request)
+			} else {
+				fmt.Println("Not time for this request")
+			}
+
 			apiClient.UpdateScanRequest(request.ScanRequest.Id, UUID)
 		} else {
 			fmt.Println("\nThis request is not mine")
 		}
-
-    RunScan(request)
   }
-}
 
-func checkSensor(sensors []string)(bool){
-	isInRequest := false
-	fmt.Println("sensor taken from config: " + UUID)
-
-	for sensor := range sensors {
-		if sensors[sensor] == UUID {
-			isInRequest = true
-		}
-	}
-	return isInRequest
 }

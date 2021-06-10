@@ -6,6 +6,7 @@ import (
   "strconv"
   "fmt"
   "strings"
+	"time"
 )
 
 func RunScan(scan Response){
@@ -24,13 +25,35 @@ func RunScan(scan Response){
     }
 
   case 2:
-    cmd := exec.Command(VulnerabiliesScan)
-    cmd.Start()
-  }
+    //                `sudo /opt/rb/bin/rb_nmap.sh -t='#{target_element}' -p='all' -r=#{result_id}`
+		targets := scan.ScanRequest.Target
 
+		for target := range targets {
+	    cmd := exec.Command(VulnerabiliesScan, "-t=", targets[target], "-p=", "all", "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId))
+			cmd.Stdout = os.Stdout
+	    err := cmd.Start()
+
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+  }
   //cmd.Start()
 }
 
+func checkDate(requestDate string) (bool){
+	formatTime := "2006-01-02 15:04:05 -0700"
+	sysTime := time.Now()
+	regDate, _ := time.Parse(formatTime, requestDate)
+
+	fmt.Println(regDate)
+
+	if regDate.Before(sysTime) {
+		return true
+	} else {
+		return false
+	}
+}
 
 func FormatTarget(target []string) (string) {
   target_string := "["
@@ -45,4 +68,16 @@ func FormatTarget(target []string) (string) {
   }
   fmt.Println(target_string)
   return target_string
+}
+
+func checkSensor(sensors []string)(bool){
+	isInRequest := false
+	fmt.Println("sensor taken from config: " + UUID)
+
+	for sensor := range sensors {
+		if sensors[sensor] == UUID {
+			isInRequest = true
+		}
+	}
+	return isInRequest
 }
