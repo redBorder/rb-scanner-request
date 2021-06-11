@@ -1,6 +1,6 @@
 # rb-scanner-resquest
 
-Application written in GO that checks if the redBorder manager has scan requests on queue.
+Application written in GO that checks if the redBorder manager has scans requests on queue.
 
 ## Installing
 
@@ -19,6 +19,7 @@ git build .
 
 Usage of **rb-scanner-resquest** and default values:
 
+```
 -daemon
   	Start in daemon mode
 -hash string
