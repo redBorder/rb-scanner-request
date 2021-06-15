@@ -4,16 +4,22 @@ import (
 	"flag"
 	"runtime"
 	 "time"
-  "fmt"
+//  "fmt"
+	"strconv"
+	"os"
+	"github.com/sirupsen/logrus"
 )
 
-var version string
+var version string = "1.0"
 var goVersion = runtime.Version()
+
+// Global logger
+var logger = logrus.New()
 
 var (
 	debug         *bool       // Debug flag
 	apiURL        *string     // API url
-	hash          *string     // Required hash to perform the registration
+	UUIDhash      *string     // Required hash to perform the registration
 	deviceAlias   *string     // Given alias of the device
 	sleepTime     *int        // Time between requests
 	insecure      *bool       // If true, skip SSL verification
@@ -32,7 +38,7 @@ var (
 func init(){
   scriptFile = flag.String("script", "/opt/rb/bin/rb_register_finish.sh", "Script to call after the certificate has been obtained")
 	debug = flag.Bool("debug", false, "Show debug info")
-  hash = flag.String("hash", "00000000-0000-0000-0000-000000000000", "Hash to use in the request")
+  UUIDhash = flag.String("hash", UUID, "Hash to use in the request")
 	apiURL = flag.String("url", "https://10.0.203.100/api/v1/scanner/", "Protocol and hostname to connect")
   auth_token = flag.String("auth-token", "4u29xzXa5vMVJd9fxNsW1Bc5eBrmRmu29ooUGqKr", "Authentication token")
 	sleepTime = flag.Int("sleep", 60, "Time between requests in seconds")
@@ -40,33 +46,44 @@ func init(){
 	//insecure = flag.Bool("no-check-certificate", false, "Dont check if the certificate is valid")
 	//certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	//dbFile = flag.String("db", "", "File to persist the state")
+	logFile = flag.String("log", "log", "Log file")
 	daemonFlag = flag.Bool("daemon", false, "Start in daemon mode")
 	pid = flag.String("pid", "pid", "File containing PID")
+	versionFlag := flag.Bool("version", false, "Display version")
 
 	flag.Parse()
+
+	if *versionFlag {
+		displayVersion()
+		os.Exit(0)
+	}
+	customFormatter := new(logrus.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+	logger.SetFormatter(customFormatter)
+	customFormatter.FullTimestamp = true
 }
 
 func main(){
 	apiClient := NewAPIClient(
 		APIClientConfig{
 			URL:        *apiURL,
-			Hash:       *hash,
-      Cpus:       4,
-    	Memory:     1024,
-    	DeviceType: 1,
+			Hash:       *UUIDhash,
       Auth_token: *auth_token,
 			Insecure:   true,
+			Logger: logrus.NewEntry(logger),
 		},
 	)
 
 	if *daemonFlag {
 		daemonize()
-	}
-
-	for{
+		for{
+			scanRequest(apiClient)
+			// wait until the next request
+			time.Sleep(time.Duration(*sleepTime) * time.Second)
+		}
+	} else {
+		// Single Request
 		scanRequest(apiClient)
-		// wait until the next request
-		time.Sleep(time.Duration(*sleepTime) * time.Second)
 	}
 }
 
@@ -75,23 +92,26 @@ func scanRequest(apiClient *APIClient,){
 	request, err := apiClient.GetScanRequest()
 
   if err != nil {
-    fmt.Println(err)
+    logger.Errorf(err.Error())
   } else {
-    fmt.Println(request)
+    //fmt.Println(request)
 
 		if checkSensor(request.ScanRequest.Sensors){
-			fmt.Println("\nThis request is mine")
-			//RunScan(request)
+			logger.Infoln("This request is mine")
 
 			if checkDate(request.ScanRequest.RunAt){
-				fmt.Println("Its time for this request")
-				RunScan(request)
-				apiClient.UpdateScanRequest(request.ScanRequest.Id, UUID)
+				logger.Infoln("Its time for this request")
+				response := RunScan(request)
+				if response {
+					apiClient.UpdateScanRequest(request.ScanRequest.Id)
+					logger.Infoln("Removed UUID from Scan Request [" + strconv.Itoa(request.ScanRequest.Id) + "]")
+				}
 			} else {
-				fmt.Println("Not time for this request")
+				apiClient.config.Logger.Infoln("Not time for this request")
+				logger.Infoln("Not time for this request")
 			}
 		} else {
-			fmt.Println("\nThis request is not mine")
+			logger.Infoln("This request is not mine")
 		}
   }
 

@@ -9,23 +9,24 @@ import (
 	"time"
 )
 
-func RunScan(scan Response){
+func RunScan(scan Response) (bool) {
   //var cmd *exec.Cmd
 
-  switch scan.ScanRequest.ScanType{
+  switch scan.ScanRequest.ScanType {
   case 1:
-
     fmt.Println(scan.ScanRequest.Target)
     cmd := exec.Command(HostDiscovery, "-t=", FormatTarget(scan.ScanRequest.Target), "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId), "-d=", "false")
     cmd.Stdout = os.Stdout
     err := cmd.Start()
 
     if err != nil {
-      fmt.Println(err)
-    }
-
+      logger.Error(err)
+			return false
+    } else {
+			logger.Infoln("Executed Host Discovery")
+			return true
+		}
   case 2:
-    //                `sudo /opt/rb/bin/rb_nmap.sh -t='#{target_element}' -p='all' -r=#{result_id}`
 		targets := scan.ScanRequest.Target
 
 		for target := range targets {
@@ -34,11 +35,15 @@ func RunScan(scan Response){
 	    err := cmd.Start()
 
 			if err != nil {
-				fmt.Println(err)
+				logger.Error(err)
+				return false
+			} else {
+				logger.Infoln("Executed Vulnerabilies Scan")
+				return true
 			}
 		}
-  }
-  //cmd.Start()
+	}
+	return false
 }
 
 func checkDate(requestDate string) (bool){

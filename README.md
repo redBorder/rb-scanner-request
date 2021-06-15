@@ -23,7 +23,7 @@ Usage of **rb-scanner-resquest** and default values:
 -daemon
   	Start in daemon mode
 -hash string
-  	Hash to use in the request (default "00000000-0000-0000-0000-000000000000")
+  	Hash to use in the request (default: UUID located in /opt/rb/etc/rb-uuid)
 -log string
   	Log file (default "log")
 -no-check-certificate

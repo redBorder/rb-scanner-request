@@ -4,9 +4,9 @@ import (
 	// "database/sql"
 	"net/http"
 	"io/ioutil"
-	"fmt"
+	//"fmt"
 	"strings"
-	// "github.com/Sirupsen/logrus"
+	 "github.com/sirupsen/logrus"
 )
 
 // APIClientConfig stores the client api configuration
@@ -18,7 +18,7 @@ type APIClientConfig struct {
 	Cpus       int           // Number of CPU of the computer
 	Memory     uint64        // Amount of memory of the computer
 	DeviceType int           // Type of the requesting device
-	//Logger     *logrus.Entry // Logger to use
+	Logger     *logrus.Entry // Logger to use
 	HTTPClient *http.Client  // HTTP Client to wrap
 }
 
@@ -70,9 +70,10 @@ func LoadUUID() string {
 	if err == nil {
 		return uuid_string
 	} else {
-		fmt.Println(err)
-		return "/opt/rb/etc/rb-uuid  UUID File Not Found"
+		logger.Error(err)
+		return ""
 	}
 }
+
 
 //opt/rb/etc/rb-uuid

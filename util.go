@@ -27,12 +27,17 @@ func daemonize() {
 
 	d, err := cntxt.Reborn()
 	if err != nil {
-		fmt.Println(err)
+		logger.Error(err)
 	}
 	if d != nil {
-		fmt.Println ("Daemon started [PID: %d]", d.Pid)
+		logger.Info("Daemon started [PID: %d]", d.Pid)
 		return
 	}
 
 	defer cntxt.Release()
+}
+
+func displayVersion() {
+	fmt.Println("RB-SCANNER-REQUEST VERSION:\t", version)
+	fmt.Println("GO VERSION:\t\t\t", goVersion)
 }
