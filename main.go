@@ -5,9 +5,11 @@ import (
 	"runtime"
 	 "time"
 //  "fmt"
+	//"strings"
 	"strconv"
 	"os"
 	"github.com/sirupsen/logrus"
+	"github.com/x-cray/logrus-prefixed-formatter"
 )
 
 var version string = "1.0"
@@ -36,16 +38,14 @@ var (
 
 
 func init(){
-  scriptFile = flag.String("script", "/opt/rb/bin/rb_register_finish.sh", "Script to call after the certificate has been obtained")
+  // scriptFile = flag.String("script", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Script to call after the certificate has been obtained")
 	debug = flag.Bool("debug", false, "Show debug info")
   UUIDhash = flag.String("hash", UUID, "Hash to use in the request")
 	apiURL = flag.String("url", "https://10.0.203.100/api/v1/scanner/", "Protocol and hostname to connect")
   auth_token = flag.String("auth-token", "4u29xzXa5vMVJd9fxNsW1Bc5eBrmRmu29ooUGqKr", "Authentication token")
 	sleepTime = flag.Int("sleep", 60, "Time between requests in seconds")
-	deviceAlias = flag.String("type", "", "Type of the registering device")
 	//insecure = flag.Bool("no-check-certificate", false, "Dont check if the certificate is valid")
 	//certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
-	//dbFile = flag.String("db", "", "File to persist the state")
 	logFile = flag.String("log", "log", "Log file")
 	daemonFlag = flag.Bool("daemon", false, "Start in daemon mode")
 	pid = flag.String("pid", "pid", "File containing PID")
@@ -57,10 +57,19 @@ func init(){
 		displayVersion()
 		os.Exit(0)
 	}
-	customFormatter := new(logrus.TextFormatter)
-	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
-	logger.SetFormatter(customFormatter)
-	customFormatter.FullTimestamp = true
+
+	logger = &logrus.Logger{
+        Out:   os.Stderr,
+        Level: logrus.DebugLevel,
+        Formatter: &prefixed.TextFormatter{
+            TimestampFormat : "2006-01-02 15:04:05",
+            FullTimestamp:true,
+            ForceFormatting: true,
+        },
+    }
+
+	// f, _ := os.OpenFile(*logFile, os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
+	// logger.SetOutput(f)
 }
 
 func main(){
@@ -89,30 +98,21 @@ func main(){
 
 func scanRequest(apiClient *APIClient,){
 
-	request, err := apiClient.GetScanRequest()
+	request, err, request_json := apiClient.GetScanRequest()
 
   if err != nil {
     logger.Errorf(err.Error())
   } else {
-    //fmt.Println(request)
-
 		if checkSensor(request.ScanRequest.Sensors){
-			logger.Infoln("This request is mine")
-
 			if checkDate(request.ScanRequest.RunAt){
-				logger.Infoln("Its time for this request")
-				response := RunScan(request)
+				logger.Infoln("Request taken: " + strconv.Itoa(request.ScanRequest.Id))
+				logger.Infoln("\n" + request_json)
+				response := RunScan(request, *logFile)
 				if response {
 					apiClient.UpdateScanRequest(request.ScanRequest.Id)
 					logger.Infoln("Removed UUID from Scan Request [" + strconv.Itoa(request.ScanRequest.Id) + "]")
 				}
-			} else {
-				apiClient.config.Logger.Infoln("Not time for this request")
-				logger.Infoln("Not time for this request")
 			}
-		} else {
-			logger.Infoln("This request is not mine")
 		}
   }
-
 }

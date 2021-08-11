@@ -3,9 +3,9 @@ package main
 import (
 	// "database/sql"
 	"net/http"
-	"io/ioutil"
-	//"fmt"
-	"strings"
+	 "io/ioutil"
+	// //"fmt"
+	 "strings"
 	 "github.com/sirupsen/logrus"
 )
 
@@ -47,6 +47,7 @@ type Options struct {
   Id int `json:"id"`
   Sensors   []string `json:"sensors"`
   ScanType   int `json:"scan_type"`
+	Port 	string `json:"port_list"`
   Target   []string `json:"target"`
   Status   string `json:"status"`
   RunAt   string `json:"run_at"`
@@ -58,8 +59,7 @@ type Response struct{
   ScanRequest Options `json:"scan_request"`
 }
 
-var HostDiscovery string = "/opt/rb/bin/rb_host_discovery.sh"
-var VulnerabiliesScan string = "/opt/rb/bin/rb_nmap.sh"
+
 var UUID_PATH = "/opt/rb/etc/rb-uuid"
 var UUID string = LoadUUID()
 
@@ -76,4 +76,6 @@ func LoadUUID() string {
 }
 
 
-//opt/rb/etc/rb-uuid
+var HostDiscovery string = "/opt/rb/bin/rb_host_discovery.sh"
+var VulnerabiliesScan string = "/opt/rb/bin/rb_scan_vulnerabilities.sh"
+var PortScan string = "/opt/rb/bin/rb_port_scan.sh"

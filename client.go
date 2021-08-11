@@ -54,7 +54,7 @@ func NewAPIClient(config APIClientConfig) *APIClient {
 	return c
 }
 
-func (c *APIClient) GetScanRequest() (response Response, err error){
+func (c *APIClient) GetScanRequest() (response Response, err error, jsonRequest string){
   res := Response{}
   apiAction := "scanner_request?"
   api_url_request := c.config.URL + apiAction + "auth_token=" + c.config.Auth_token
@@ -67,7 +67,7 @@ func (c *APIClient) GetScanRequest() (response Response, err error){
 
   defer rawResponse.Body.Close()
 	if rawResponse.StatusCode >= 400 {
-		return res, errors.New("Got status code: " + rawResponse.Status)
+		return res, errors.New("Got status code: " + rawResponse.Status), ""
 	}
 
   bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
@@ -77,7 +77,7 @@ func (c *APIClient) GetScanRequest() (response Response, err error){
 	//
   fmt.Println(bodyString)
 
-  return res, err
+  return res, err, bodyString
 }
 
 
