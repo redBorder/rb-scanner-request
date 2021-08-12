@@ -1,0 +1,9 @@
+#!/bin/bash
+#
+# chkconfig: 2345 60 14
+# description: daemon control script
+#
+
+/opt/rb/etc/init.d/sv_service rb-scanner-request $*
+exit $?
+
