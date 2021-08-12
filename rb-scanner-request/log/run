@@ -1,0 +1,3 @@
+#!/bin/sh
+mkdir -p /var/log/rb-scanner-request
+exec svlogd -tt /var/log/rb-scanner-request
