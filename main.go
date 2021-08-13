@@ -27,7 +27,7 @@ var (
 	insecure      *bool       // If true, skip SSL verification
 	certFile      *string     // Path to store de certificate
 	dbFile        *string     // File to persist the state
-	daemonFlag    *bool       // Start in daemon mode
+	//daemonFlag    *bool       // Start in daemon mode
 	pid           *string     // Path to PID file
 	scriptFile    *string     // Script to call after the certificate has been obtained
 	scriptLogFile *string     // Log to save the result of the script called
@@ -45,7 +45,7 @@ func init(){
 	sleepTime = flag.Int("sleep", 60, "Time between requests in seconds")
 	//insecure = flag.Bool("no-check-certificate", false, "Dont check if the certificate is valid")
 	//certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
-	daemonFlag = flag.Bool("daemon", false, "Start in daemon mode")
+	//daemonFlag = flag.Bool("daemon", false, "Start in daemon mode")
 	pid = flag.String("pid", "pid", "File containing PID")
 	versionFlag := flag.Bool("version", false, "Display version")
 
@@ -81,17 +81,17 @@ func main(){
 		},
 	)
 
-	if *daemonFlag {
-		daemonize()
+	// if *daemonFlag {
+	// 	daemonize()
 		for{
 			scanRequest(apiClient)
 			// wait until the next request
 			time.Sleep(time.Duration(*sleepTime) * time.Second)
 		}
-	} else {
-		// Single Request
-		scanRequest(apiClient)
-	}
+	// } else {
+	// 	// Single Request
+	// 	scanRequest(apiClient)
+	// }
 }
 
 func scanRequest(apiClient *APIClient,){

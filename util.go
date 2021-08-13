@@ -28,7 +28,7 @@ func daemonize() {
 		logger.Error(err)
 	}
 	if d != nil {
-		logger.Info("Daemon started [PID: %d]", d.Pid)
+		logger.Info("Daemon started [PID: %s]", d.Pid)
 		return
 	}
 
