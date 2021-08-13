@@ -29,7 +29,6 @@ var (
 	dbFile        *string     // File to persist the state
 	daemonFlag    *bool       // Start in daemon mode
 	pid           *string     // Path to PID file
-	logFile       *string     // Log file
 	scriptFile    *string     // Script to call after the certificate has been obtained
 	scriptLogFile *string     // Log to save the result of the script called
 	//si            *sysinfo.SI // System information
@@ -46,7 +45,6 @@ func init(){
 	sleepTime = flag.Int("sleep", 60, "Time between requests in seconds")
 	//insecure = flag.Bool("no-check-certificate", false, "Dont check if the certificate is valid")
 	//certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
-	logFile = flag.String("log", "log", "Log file")
 	daemonFlag = flag.Bool("daemon", false, "Start in daemon mode")
 	pid = flag.String("pid", "pid", "File containing PID")
 	versionFlag := flag.Bool("version", false, "Display version")
@@ -99,18 +97,23 @@ func main(){
 func scanRequest(apiClient *APIClient,){
 
 	request, err, request_json := apiClient.GetScanRequest()
-
+	
   if err != nil {
     logger.Errorf(err.Error())
   } else {
 		if checkSensor(request.ScanRequest.Sensors){
 			if checkDate(request.ScanRequest.RunAt){
-				logger.Infoln("Request taken: " + strconv.Itoa(request.ScanRequest.Id))
-				logger.Infoln("\n" + request_json)
-				response := RunScan(request, *logFile)
+				if *debug == true {
+					logger.Infoln("Request taken: " + strconv.Itoa(request.ScanRequest.Id))
+					logger.Infoln("\n" + request_json)
+				}
+				response := RunScan(request)
 				if response {
+					logger.Infoln("Starting scan fo scan request [" + strconv.Itoa(request.ScanRequest.Id) + "]")
 					apiClient.UpdateScanRequest(request.ScanRequest.Id)
-					logger.Infoln("Removed UUID from Scan Request [" + strconv.Itoa(request.ScanRequest.Id) + "]")
+					if *debug == true {
+						logger.Infoln("Removed UUID from Scan Request [" + strconv.Itoa(request.ScanRequest.Id) + "]")
+					}
 				}
 			}
 		}

@@ -75,7 +75,9 @@ func (c *APIClient) GetScanRequest() (response Response, err error, jsonRequest 
   err = json.Unmarshal(bufferResponse, &res)
   bodyString := string(bufferResponse)
 	//
-  fmt.Println(bodyString)
+	if *debug == true {
+		fmt.Println(bodyString)
+	}
 
   return res, err, bodyString
 }

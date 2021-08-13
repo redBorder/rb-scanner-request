@@ -2,26 +2,19 @@ package main
 
 import (
 	"os/exec"
-  "os"
   "strconv"
   "fmt"
   "strings"
 	"time"
 )
 
-func RunScan(scan Response, logFileName string) (bool) {
-  //var cmd *exec.Cmd
-	logfile, err := os.Create(logFileName)
-	if err != nil {
-		logger.Error(err)
-	}
+func RunScan(scan Response) (bool) {
 
   switch scan.ScanRequest.ScanType {
   case 1:
     fmt.Println(scan.ScanRequest.Target)
     cmd := exec.Command(HostDiscovery, "-t=", FormatTarget(scan.ScanRequest.Target), "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId), "-d=", "false")
-    //cmd.Stdout = os.Stdout
-		cmd.Stdout = logfile
+
     err := cmd.Start()
 
     if err != nil {
@@ -36,9 +29,8 @@ func RunScan(scan Response, logFileName string) (bool) {
 
 		for target := range targets {
 	    cmd := exec.Command(VulnerabiliesScan, "-t=", targets[target], "-p=", scan.ScanRequest.Port, "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId), "-s=", strconv.Itoa(scan.ScanRequest.Id))
-			//cmd.Stdout = os.Stdout
-			cmd.Stdout = logfile
 	    err := cmd.Start()
+
 
 			if err != nil {
 				logger.Error(err)
@@ -53,8 +45,6 @@ func RunScan(scan Response, logFileName string) (bool) {
 
 		for target := range targets {
 			cmd := exec.Command(PortScan, "-t=", targets[target], "-p=", "all", "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId))
-			//cmd.Stdout = os.Stdout
-			cmd.Stdout = logfile
 			err := cmd.Start()
 
 			if err != nil {
@@ -66,7 +56,6 @@ func RunScan(scan Response, logFileName string) (bool) {
 			}
 		}
 	}
-	defer logfile.Close()
 	return false
 }
 
@@ -101,7 +90,9 @@ func FormatTarget(target []string) (string) {
 
 func checkSensor(sensors []string)(bool){
 	isInRequest := false
-	logger.Infoln("sensor taken from config: " + *UUIDhash)
+	if *debug == true {
+		logger.Infoln("sensor taken from config: " + *UUIDhash)
+	}
 
 	for sensor := range sensors {
 		if sensors[sensor] == *UUIDhash {

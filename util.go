@@ -7,7 +7,6 @@ import (
 )
 
 
-
 func daemonize() {
 	// hook, err := logrus_syslog.NewSyslogHook("", "", syslog.LOG_INFO, "rb-register")
 	// if err != nil {
@@ -18,7 +17,6 @@ func daemonize() {
 	cntxt := &daemon.Context{
 		PidFileName: *pid,
 		PidFilePerm: 0644,
-		LogFileName: *logFile,
 		LogFilePerm: 0640,
 		WorkDir:     "./",
 		Umask:       027,
