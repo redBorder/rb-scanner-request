@@ -1,18 +1,32 @@
+// Copyright (C) 2016 Eneo Tecnologia S.L.
+// 
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
+	"strconv"
 	"errors"
 	"io/ioutil"
 	"net/http"
-  "fmt"
-  "encoding/json"
-	//"github.com/sirupsen/logrus"
+    "encoding/json"
 )
 
-// APIClient is an objet that can communicate with the API to perform a
-// registration. It has the necessary methods to interact with the API.
+// APIClient is an object that can communicate with the redborder API to get 
+// scanner information. 
 type APIClient struct {
 	status   string // Current status of the registrtation
 	cert     string // Client certificate
@@ -22,22 +36,14 @@ type APIClient struct {
 }
 
 func NewAPIClient(config APIClientConfig) *APIClient {
-  c := &APIClient{
+    c := &APIClient{
 		config: config,
 		status: "scanning",
 	}
 
-  // Check if the configuration is ok
+    // Check if the configuration is ok
 	if len(c.config.URL) == 0 {
-		logger.Warnf("Url not provided")
-		return nil
-	}
-	if len(c.config.Hash) == 0 {
-		logger.Warnf("Hash not provided")
-		return nil
-	}
-  if len(c.config.Auth_token) == 0 {
-		logger.Warnf("Auth token not provided")
+		logger.Error("Url is not provided")
 		return nil
 	}
 
@@ -54,53 +60,86 @@ func NewAPIClient(config APIClientConfig) *APIClient {
 	return c
 }
 
-func (c *APIClient) GetScanRequest() (response Response, err error, jsonRequest string){
-  res := Response{}
-  apiAction := "scanner_request?"
-  api_url_request := c.config.URL + apiAction + "auth_token=" + c.config.Auth_token
+func (c *APIClient) Jobs(uuid string) (response ScanResponse, err error){
+  res := ScanResponse{}
 
-  //bufferReq := bytes.NewBuffer(marshalledReq)
-	httpReq, err := http.NewRequest("GET", api_url_request, nil)
-	httpReq.Header.Set("Content-Type", "application/json")
+  api_url_request := c.config.URL + "/api/v1/sensors/"+uuid+"/scans"
+  c.config.Logger.Info("request url is ", api_url_request)
 
-	rawResponse, err := c.config.HTTPClient.Do(httpReq)
-
-  defer rawResponse.Body.Close()
-	if rawResponse.StatusCode >= 400 {
-		return res, errors.New("Got status code: " + rawResponse.Status), ""
-	}
-
-  bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
-
-  err = json.Unmarshal(bufferResponse, &res)
-  bodyString := string(bufferResponse)
-	//
-	if *debug == true {
-		fmt.Println(bodyString)
-	}
-
-  return res, err, bodyString
-}
-
-
-func (c *APIClient) UpdateScanRequest(scan_request_id int){
-
-	json_parameter, _ := json.Marshal(SensorRequestJson{Scan_request_id: scan_request_id, Sensor_uuid: c.config.Hash })
-
-	api_action := "remove_sensor?"
-  api_url_request := c.config.URL + api_action + "auth_token=" + c.config.Auth_token
-
-
-	req, err := http.NewRequest(http.MethodPost, api_url_request, bytes.NewBuffer([]byte(json_parameter)))
-	if err != nil {
-		c.config.Logger.Error(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	rawResponse, err := c.config.HTTPClient.Do(req)
+  httpReq, err := http.NewRequest("GET", api_url_request, nil)
   if err != nil {
-		c.config.Logger.Error(err)
+	return res, err
+  }
+  httpReq.Header.Set("Content-Type", "application/json")
+
+  rawResponse, err := c.config.HTTPClient.Do(httpReq)
+  if err != nil {
+	return res, err
+  }
+  defer rawResponse.Body.Close()
+  if rawResponse.StatusCode >= 400 {
+    return res, errors.New("Got status code: " + rawResponse.Status)
   }
 
-	defer rawResponse.Body.Close()
+  bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
+  if err != nil {
+	return res, err
+  }
+
+  err = json.Unmarshal(bufferResponse, &res)
+  if err != nil{
+	c.config.Logger.Error(err)
+  }
+
+  return res, err
 }
+
+func (c *APIClient) jobFinished(j Job) (response ScanResponse, err error){
+  res := ScanResponse{}
+
+  c.config.Logger.Info("sending status finished to manager for uuid ", j.Uuid, " job ", strconv.Itoa(j.Jobid))
+  api_url_request := c.config.URL +"/api/v1/sensors/"+ j.Uuid + "/scans/" + strconv.Itoa(j.Jobid) + "/finish"
+  c.config.Logger.Info("api url is : ", api_url_request)
+  httpReq, err := http.NewRequest("PUT", api_url_request, nil)
+  if err != nil {
+	return res, err
+  }
+  rawResponse, err := c.config.HTTPClient.Do(httpReq)
+  if err != nil {
+	return res, err
+  }
+  defer rawResponse.Body.Close()
+  if rawResponse.StatusCode >= 400 {
+    return res, errors.New("Got status code: " + rawResponse.Status)
+  }
+
+  bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
+  if err != nil {
+	return res, err
+  }
+  err = json.Unmarshal(bufferResponse, &res)
+  if err != nil{
+	c.config.Logger.Error(err)
+  }
+
+  return res, err
+}
+
+// func (c *APIClient) updatejob(scan_request_id int){
+
+//   json_parameter, _ := json.Marshal(SensorRequestJson{job_id: scan_request_id, sensor_uuid: c.config.Hash })
+//   api_url_request := c.config.URL + "/api/v1/scanner/job"
+  
+//   req, err := http.NewRequest(http.MethodPost, api_url_request, bytes.NewBuffer([]byte(json_parameter)))
+//   if err != nil {
+//     c.config.Logger.Error(err)
+//   }
+//   req.Header.Set("Content-Type", "application/json")
+
+//   rawResponse, err := c.config.HTTPClient.Do(req)
+//   if err != nil {
+// 		c.config.Logger.Error(err)
+//   }
+
+//   defer rawResponse.Body.Close()
+// }

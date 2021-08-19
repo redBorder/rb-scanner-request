@@ -1,0 +1,16 @@
+package: github.com/redBorder/rb-scanner-request
+import:
+- package: github.com/Sirupsen/logrus
+  version: ^0.10.0
+  subpackages:
+  - hooks/syslog
+- package: github.com/capnm/sysinfo
+- package: github.com/mattn/go-sqlite3
+  version: ^1.1.0
+- package: github.com/sevlyar/go-daemon
+  version: ^0.1.0
+testImport:
+- package: github.com/stretchr/testify
+  version: ^1.1.4
+  subpackages:
+  - assert

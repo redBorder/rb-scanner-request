@@ -12,9 +12,8 @@ To install this application ensure you have the `GOPATH` environment variable
 2. Install dependencies and compile
 
 ```
-go mod init rb-scanner-request
-
-git build .
+glide install
+make
 ```
 
 ## Usage

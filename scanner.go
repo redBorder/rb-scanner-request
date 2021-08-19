@@ -1,103 +1,40 @@
 package main
 
 import (
-	"os/exec"
+  "os/exec"
+  "github.com/Sirupsen/logrus"
   "strconv"
-  "fmt"
-  "strings"
-	"time"
 )
 
-func RunScan(scan Response) (bool) {
-
-  switch scan.ScanRequest.ScanType {
-  case 1:
-    fmt.Println(scan.ScanRequest.Target)
-    cmd := exec.Command(HostDiscovery, "-t=", FormatTarget(scan.ScanRequest.Target), "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId), "-d=", "false")
-
-    err := cmd.Start()
-
-    if err != nil {
-      logger.Error(err)
-			return false
-    } else {
-			logger.Infoln("Executed Host Discovery")
-			return true
-		}
-  case 2:
-		targets := scan.ScanRequest.Target
-
-		for target := range targets {
-	    cmd := exec.Command(VulnerabiliesScan, "-t=", targets[target], "-p=", scan.ScanRequest.Port, "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId), "-s=", strconv.Itoa(scan.ScanRequest.Id))
-	    err := cmd.Start()
-
-
-			if err != nil {
-				logger.Error(err)
-				return false
-			} else {
-				logger.Infoln("Executed Vulnerabilies Scan")
-				return true
-			}
-		}
-	case 5:
-		targets := scan.ScanRequest.Target
-
-		for target := range targets {
-			cmd := exec.Command(PortScan, "-t=", targets[target], "-p=", "all", "-r=", strconv.Itoa(scan.ScanRequest.ScanHistoryId))
-			err := cmd.Start()
-
-			if err != nil {
-				logger.Error(err)
-				return false
-			} else {
-				logger.Infoln("Executed Port Scan")
-				return true
-			}
-		}
-	}
-	return false
+// Database handles the connection with a SQL Database
+type Scanner struct {
+	config ScannerConfig
 }
 
-func checkDate(requestDate string) (bool){
-	formatTime := "2006-01-02 15:04:05 -0700"
-	sysTime := time.Now()
-	regDate, _ := time.Parse(formatTime, requestDate)
+// NewDatabase creates a new instance of a database
+func NewScanner(config ScannerConfig) *Scanner {
+	scan := &Scanner{
+		config: config,
+	}
 
-	//fmt.Println(regDate)
+	if scan.config.Logger == nil {
+		scan.config.Logger = logrus.New()
+	}
 
-	if regDate.Before(sysTime) {
-		return true
+	return scan
+}
+
+func (scan *Scanner) StartScan(j Job) (pid int, err error) {
+	logger := db.config.Logger
+
+	logger.Info("start scan for id ", j.Id)
+	cmd := exec.Command(VulnerabiliesScan, "-t=", j.Target, "-p=", j.Ports, "-r=", strconv.Itoa(j.Jobid), "-s=", strconv.Itoa(j.Jobid))
+	err = cmd.Start()
+	if err != nil {
+		return 0, err
 	} else {
-		return false
+		logger.Info("started new job with pid ", cmd.Process.Pid)
+		go cmd.Wait()
+		return cmd.Process.Pid, nil
 	}
-}
-
-func FormatTarget(target []string) (string) {
-  target_string := "["
-  size := len(target)-1
-
-  for i, rune := range target {
-    if i != size {
-      target_string = target_string + "\"" + strings.TrimSpace(rune) + "\","
-    } else {
-      target_string = target_string + "\"" + strings.TrimSpace(rune) + "\"]"
-    }
-  }
-  fmt.Println(target_string)
-  return target_string
-}
-
-func checkSensor(sensors []string)(bool){
-	isInRequest := false
-	if *debug == true {
-		logger.Infoln("sensor taken from config: " + *UUIDhash)
-	}
-
-	for sensor := range sensors {
-		if sensors[sensor] == *UUIDhash {
-			isInRequest = true
-		}
-	}
-	return isInRequest
 }

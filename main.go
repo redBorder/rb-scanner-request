@@ -3,119 +3,242 @@ package main
 import (
 	"flag"
 	"runtime"
-	 "time"
-//  "fmt"
-	//"strings"
-	"strconv"
+	"time"
+	"encoding/json"
+	"io/ioutil"
 	"os"
-	"github.com/sirupsen/logrus"
+	"fmt"
+	"syscall"
+	"github.com/Sirupsen/logrus"
 	"github.com/x-cray/logrus-prefixed-formatter"
 )
 
 var version string = "1.0"
 var goVersion = runtime.Version()
 
+var sensors Sensors
+var db *Database
+var scanner *Scanner
+var apiClient *APIClient
+
 // Global logger
 var logger = logrus.New()
 
 var (
 	debug         *bool       // Debug flag
-	apiURL        *string     // API url
-	UUIDhash      *string     // Required hash to perform the registration
-	deviceAlias   *string     // Given alias of the device
+	URL           *string     // API url
+	config        *string     // file with sensor information
 	sleepTime     *int        // Time between requests
 	insecure      *bool       // If true, skip SSL verification
 	certFile      *string     // Path to store de certificate
 	dbFile        *string     // File to persist the state
-	//daemonFlag    *bool       // Start in daemon mode
-	pid           *string     // Path to PID file
-	scriptFile    *string     // Script to call after the certificate has been obtained
-	scriptLogFile *string     // Log to save the result of the script called
-	//si            *sysinfo.SI // System information
-  auth_token    *string     // API url auth_token
 )
 
-
 func init(){
-  // scriptFile = flag.String("script", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Script to call after the certificate has been obtained")
 	debug = flag.Bool("debug", false, "Show debug info")
-  UUIDhash = flag.String("hash", UUID, "Hash to use in the request")
-	apiURL = flag.String("url", "https://10.0.203.100/api/v1/scanner/", "Protocol and hostname to connect")
-  auth_token = flag.String("auth-token", "4u29xzXa5vMVJd9fxNsW1Bc5eBrmRmu29ooUGqKr", "Authentication token")
+	URL = flag.String("url", "", "Protocol and hostname to connect")
+	config = flag.String("config", "sensor.json", "config file with sensor information")
+	dbFile = flag.String("db", "scanjobs.sql", "Database file to persist the state")
 	sleepTime = flag.Int("sleep", 60, "Time between requests in seconds")
-	//insecure = flag.Bool("no-check-certificate", false, "Dont check if the certificate is valid")
-	//certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
-	//daemonFlag = flag.Bool("daemon", false, "Start in daemon mode")
-	pid = flag.String("pid", "pid", "File containing PID")
+	insecure = flag.Bool("no-check-certificate", true, "Dont check if the certificate is valid")
+	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	versionFlag := flag.Bool("version", false, "Display version")
 
 	flag.Parse()
 
 	if *versionFlag {
-		displayVersion()
+		fmt.Println("RB-SCANNER-REQUEST VERSION:\t", version)
 		os.Exit(0)
 	}
 
-	logger = &logrus.Logger{
-        Out:   os.Stderr,
-        Level: logrus.DebugLevel,
-        Formatter: &prefixed.TextFormatter{
-            TimestampFormat : "2006-01-02 15:04:05",
-            FullTimestamp:true,
-            ForceFormatting: true,
-        },
-    }
+	initLogger()
+	
+	// check for mandatory parameters before continuing
+	if *URL == "" {
+		logger.Error("url of manager is not specified")
+		os.Exit(0)
+	  }
+  
+	logger.Info("parameters used by the service :")
+	logger.Info("insecure : ", *insecure)
+	logger.Info("URL : ", *URL)
+	logger.Info("sleeptime : ", *sleepTime)
+	logger.Info("config file : ", *config)
 
-	// f, _ := os.OpenFile(*logFile, os.O_APPEND | os.O_CREATE | os.O_RDWR, 0666)
-	// logger.SetOutput(f)
-}
+	readConfigFile(*config)
+	readDbFile(*dbFile)
 
-func main(){
-	apiClient := NewAPIClient(
+	scanner = NewScanner(ScannerConfig{sqldb: db})
+
+	apiClient = NewAPIClient(
 		APIClientConfig{
-			URL:        *apiURL,
-			Hash:       *UUIDhash,
-      Auth_token: *auth_token,
-			Insecure:   true,
+			URL:        *URL,
+			Insecure:   *insecure,
 			Logger: logrus.NewEntry(logger),
 		},
 	)
 
-	// if *daemonFlag {
-	// 	daemonize()
-		for{
-			scanRequest(apiClient)
-			// wait until the next request
-			time.Sleep(time.Duration(*sleepTime) * time.Second)
-		}
-	// } else {
-	// 	// Single Request
-	// 	scanRequest(apiClient)
-	// }
 }
 
-func scanRequest(apiClient *APIClient,){
+func main(){
 
-	request, err, request_json := apiClient.GetScanRequest()
-	
-  if err != nil {
-    logger.Errorf(err.Error())
-  } else {
-		if checkSensor(request.ScanRequest.Sensors){
-			if checkDate(request.ScanRequest.RunAt){
-				if *debug == true {
-					logger.Infoln("Request taken: " + strconv.Itoa(request.ScanRequest.Id))
-					logger.Infoln("\n" + request_json)
-				}
-				response := RunScan(request)
-				if response {
-					logger.Infoln("Starting scan fo scan request [" + strconv.Itoa(request.ScanRequest.Id) + "]")
-					apiClient.UpdateScanRequest(request.ScanRequest.Id)
-					if *debug == true {
-						logger.Infoln("Removed UUID from Scan Request [" + strconv.Itoa(request.ScanRequest.Id) + "]")
-					}
-				}
+	logger.Info("start requesting jobs every ", *sleepTime, " seconds")
+
+	// endless for loop that checks for scans and process them as jobs
+	for{
+		for i := 0; i < len(sensors.Sensors); i++ {
+			logger.Info("request scans for sensor with uuid ", sensors.Sensors[i].Uuid)
+			scans := scanRequestForSensor(apiClient, sensors.Sensors[i].Uuid)
+			
+			// loop over all the scans and insert in database if new scan
+			for _, s := range scans {
+				db.StoreJob(sensors.Sensors[i].Uuid, s)
 			}
 		}
+		logger.Info("finished processing scans from manager ", *URL)
+
+		// loop over all the local jobs in the db and start if new, later check pid if not finished
+		var jobs []Job
+		jobs, err := db.LoadJobs()
+		if err != nil {
+		 	logger.Error(err)
+		}
+
+		// loop over all jobs, start if they are new and do not have pid
+		// check if they are finished if the job has a pid
+        for _, j := range jobs {
+		 	if (j.Pid > 0) {
+				logger.Info("check if scan is still running with ", j.Pid)
+				jobExist, err := PidExists(int32(j.Pid))
+				if err != nil {
+		 			logger.Info(err)
+		 		}
+		 		if !jobExist {
+					logger.Info("job is finished with pid ", j.Pid)
+					if _, err := apiClient.jobFinished(j); err != nil {
+						logger.Error("could not send finished status to manager for job with id ", j.Id)
+					} else {
+						if err := db.setJobStatus(j.Id, "finished"); err != nil {
+							logger.Error("error setting finished status in database ", err)
+						}
+					}
+		 		}
+		 	} else if j.Status == "new" {
+				 pid, err := scanner.StartScan(j)
+				 if err != nil {
+					logger.Error("job could not be started", err)
+				 } else {
+					if err := db.InsertJobPid(j.Id, pid); err != nil {
+						logger.Error("could not insert pid in database", err)
+					} else {
+						if err := db.setJobStatus(j.Id, "running"); err != nil {
+							logger.Error("could not update status of job in database")
+						}
+					}
+				 }
+			 }
+		}
+		time.Sleep(time.Duration(*sleepTime) * time.Second)
+	}
+	defer db.Close()
+}
+
+func initLogger() {
+	loglevel, ok := os.LookupEnv("LOG_LEVEL")
+    if !ok {
+        loglevel = "debug"
+    }
+    lloglevel, err := logrus.ParseLevel(loglevel)
+    if err != nil || *debug {
+        lloglevel = logrus.DebugLevel
+    }
+	logger = &logrus.Logger{
+        Out:   os.Stderr,
+        Level: lloglevel,
+        Formatter: &prefixed.TextFormatter{
+            TimestampFormat : "2006-01-02 15:04:05",
+        },
+	}
+}
+
+func readConfigFile(config string) {
+	configFile, err := os.Open(config)
+	if err != nil {
+		logger.Error(err)
+		os.Exit(1)
+	}
+	logger.Info("Successfully Opened sensor.json")
+	defer configFile.Close()
+
+	byteValue, _ := ioutil.ReadAll(configFile)
+	json.Unmarshal(byteValue, &sensors)
+
+	for i := 0; i < len(sensors.Sensors); i++ {
+		logger.Info("Sensor Name: " + sensors.Sensors[i].Name)
+		logger.Info("Sensor uuid: " + sensors.Sensors[i].Uuid)
+		logger.Info("Sensor Ip: " + sensors.Sensors[i].Ip)
+	}
+}
+
+func readDbFile(config string) {
+	if len(*dbFile) > 0 {
+		logger.Info("read database file")
+		db = NewDatabase(DatabaseConfig{dbFile: *dbFile})
+		if db == nil {
+			logger.Errorln("Error opening database")
+			halt()
+		}
+	}
+}
+
+func scanRequestForSensor(apiClient *APIClient, uuid string) []Scan {
+
+  logger.Info("request jobs")
+  response, err := apiClient.Jobs(uuid)
+  
+  if err != nil {
+	logger.Error(err.Error())
+	return nil
+
+  } else {
+	logger.Info("successfully retrieved jobs")
+	//logger.Info("response query is ", response.Query)
+	logger.Info("response query is ", response.Scans)
+	 return response.Scans 
   }
+  return nil
+}
+
+func halt() {
+	logger.Error("Halted")
+	select {}
+}
+
+// function to check if pid of job is still existing
+func PidExists(pid int32) (bool, error) {
+	if pid <= 0 {
+		return false, nil
+	}
+	proc, err := os.FindProcess(int(pid))
+	if err != nil {
+		return false, err
+	}
+	err = proc.Signal(syscall.Signal(0))
+	if err == nil {
+		return true, nil
+	}
+	if err.Error() == "os: process already finished" {
+		return false, nil
+	}
+	errno, ok := err.(syscall.Errno)
+	if !ok {
+		return false, err
+	}
+	switch errno {
+	case syscall.ESRCH:
+		return false, nil
+	case syscall.EPERM:
+		return true, nil
+	}
+	return false, err
 }

@@ -1,12 +1,9 @@
 package main
 
 import (
-	// "database/sql"
+	"database/sql"
 	"net/http"
-	 "io/ioutil"
-	// //"fmt"
-	 "strings"
-	 "github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // APIClientConfig stores the client api configuration
@@ -14,68 +11,61 @@ type APIClientConfig struct {
 	Insecure   bool          // If true, skip SSL verification
 	URL        string        // API url
 	Hash       string        // Required hash to perform the registration
-  Auth_token string
-	Cpus       int           // Number of CPU of the computer
-	Memory     uint64        // Amount of memory of the computer
-	DeviceType int           // Type of the requesting device
+    Auth_token string
 	Logger     *logrus.Entry // Logger to use
 	HTTPClient *http.Client  // HTTP Client to wrap
 }
 
-type scanOptions struct {
-  target string
-  sensors string
-  ports string
+// structures used to read the scanner sensor config file created by chef
+type Sensors struct {
+    Sensors []Sensor `json:"sensors"`
 }
 
-type PostAPI struct {
-	scanner_request SensorRequest
+type Sensor struct {
+    Name   string `json:"name"`
+    Uuid   string `json:"uuid"`
+    Ip     string `json:"ip"`
 }
 
-type SensorRequest struct {
-	scan_request_id string
-	sensor_uuid string
+// DatabaseConfig stores the database configuration
+type DatabaseConfig struct {
+	sqldb  *sql.DB
+	dbFile string
+	Logger *logrus.Logger // Logger to use
 }
 
-type SensorRequestJson struct {
-	Scan_request_id int `json:"scan_request_id"`
-	Sensor_uuid string `json:"sensor_uuid"`
+// ScannerConfig stores the scanner configuration
+type ScannerConfig struct {
+	sqldb  *Database
+	Logger *logrus.Logger
+}
+
+// info of a local job, created from a scan retrieved from the manager and stored in the local db
+type Job struct {
+	Id     int
+	Jobid  int
+	Target string
+	Ports  string
+	Status string
+	Pid    int
+	Uuid   string
+}
+
+// structure to process the scans retrieved from the manager with an api call
+type ScanResponse struct{
+	Query bool `json:"query"`
+	Scans []Scan `json:"scans"`
 }
 
 // response structure for scan request
-type Options struct {
-  Id int `json:"id"`
-  Sensors   []string `json:"sensors"`
-  ScanType   int `json:"scan_type"`
-	Port 	string `json:"port_list"`
-  Target   []string `json:"target"`
-  Status   string `json:"status"`
-  RunAt   string `json:"run_at"`
-  ScanHistoryId int `json:"scan_history_id"`
+type Scan struct {
+	Scan_id     int `json:"scan_id"`
+	Target_addr string `json:"target_addr"`
+	Target_port string `json:"target_port"`
+	Status      string `json:"status"`
 }
 
-type Response struct{
-  Query bool `json:"query"`
-  ScanRequest Options `json:"scan_request"`
-}
-
-
-var UUID_PATH = "/opt/rb/etc/rb-uuid"
-var UUID string = LoadUUID()
-
-func LoadUUID() string {
-	uuid, err := ioutil.ReadFile(UUID_PATH)
-	uuid_string := strings.TrimSuffix(string(uuid), "\n")
-
-	if err == nil {
-		return uuid_string
-	} else {
-		logger.Error(err)
-		return ""
-	}
-}
-
-
+// absolute paths of scripts used
 var HostDiscovery string = "/opt/rb/bin/rb_host_discovery.sh"
 var VulnerabiliesScan string = "/opt/rb/bin/rb_scan_vulnerabilities.sh"
 var PortScan string = "/opt/rb/bin/rb_port_scan.sh"
