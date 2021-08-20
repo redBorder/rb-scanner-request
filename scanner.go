@@ -28,7 +28,7 @@ func (scan *Scanner) StartScan(j Job) (pid int, err error) {
 	logger := db.config.Logger
 
 	logger.Info("start scan for id ", j.Id)
-	cmd := exec.Command(VulnerabiliesScan, "-t=", j.Target, "-p=", j.Ports, "-r=", strconv.Itoa(j.Jobid), "-s=", strconv.Itoa(j.Jobid))
+	cmd := exec.Command(VulnerabiliesScan,"-t",j.Target,"-p",j.Ports)
 	err = cmd.Start()
 	if err != nil {
 		return 0, err
