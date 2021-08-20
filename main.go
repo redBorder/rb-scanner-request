@@ -176,7 +176,6 @@ func readConfigFile(config string) {
 	for i := 0; i < len(sensors.Sensors); i++ {
 		logger.Info("Sensor Name: " + sensors.Sensors[i].Name)
 		logger.Info("Sensor uuid: " + sensors.Sensors[i].Uuid)
-		logger.Info("Sensor Ip: " + sensors.Sensors[i].Ip)
 	}
 }
 

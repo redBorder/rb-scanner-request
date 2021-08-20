@@ -24,7 +24,6 @@ type Sensors struct {
 type Sensor struct {
     Name   string `json:"name"`
     Uuid   string `json:"uuid"`
-    Ip     string `json:"ip"`
 }
 
 // DatabaseConfig stores the database configuration
