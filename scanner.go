@@ -3,7 +3,6 @@ package main
 import (
   "os/exec"
   "github.com/Sirupsen/logrus"
-  "strconv"
 )
 
 // Database handles the connection with a SQL Database
