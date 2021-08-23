@@ -217,33 +217,23 @@ func halt() {
 // function to check if pid of job is still existing
 func PidExists(pid int32) (bool, error) {
 	if pid <= 0 {
-		logger.Info("PID less than 0")
 		return false, nil
 	}
-	logger.Info("Calling FindProcess")
 	proc, err := os.FindProcess(int(pid))
 	if err != nil {
-		logger.Info("Found an error!")
 		return false, err
 	}
-	logger.Info("Calling Signal..")
 	err = proc.Signal(syscall.Signal(0))
 	if err == nil {
-		logger.Info("Found an error (2) !")
 		return true, nil
 	}
-	logger.Info("Checking if err.Error()")
 	if err.Error() == "os: process already finished" {
-		logger.Info("Found error.Error process already finished")
 		return false, nil
 	}
-	logger.Info("Calling err.(syscall.Errno)..")
 	errno, ok := err.(syscall.Errno)
 	if !ok {
-		logger.Info("Found eror !ok")
 		return false, err
 	}
-	logger.Info("Checkin switch errno..")
 	switch errno {
 	case syscall.ESRCH:
 		return false, nil
