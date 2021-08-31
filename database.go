@@ -81,10 +81,12 @@ func NewDatabase(config DatabaseConfig) *Database {
 
 // function to retrieve all non-finished jobs
 func (db *Database) LoadJobs() (jobs []Job, err error) {
-
+	logger := db.config.Logger
+	logger.Info ("Retrieving all non-finished jos..")
 	// get all non finished (new, running) jobs from the db an process them to return
 	rows, err := db.config.sqldb.Query(sqlSelectNonFinishedJobs)
     if err != nil {
+		logger.Info ("Retrieving all non-finished jos: ERROR")
         return nil, err
     }
     defer rows.Close()
@@ -97,6 +99,7 @@ func (db *Database) LoadJobs() (jobs []Job, err error) {
         }
         jobs = append(jobs, j)
     }
+	logger.Info ("Jobs were retrieved from database")
     if err = rows.Err(); err != nil {
         return jobs, err
     }
@@ -134,7 +137,7 @@ func (db *Database) InsertJobPid(id int, pid int) (err error) {
 
 func (db *Database) setJobStatus(id int, status string) (err error) {
 	logger := db.config.Logger
-	logger.Info("set status for job with id ", id, "to ", status)
+	logger.Info("set status for job with id ", id, " to ", status)
 	if _, err = db.config.sqldb.Exec(sqlUpdateStatus, id, status); err != nil {
 		return err
 	}
