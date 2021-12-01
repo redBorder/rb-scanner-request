@@ -1,4 +1,7 @@
 %global rb_bin_path "/var/rb-scanner-request/bin/"
+%global rb_redborder_bin "/usr/lib/redborder/bin/"
+%global rb_redborder_scripts "/usr/lib/redborder/scripts/"
+
 %define _binaries_in_noarch_packages_terminate_build 0
 %define _unpackaged_files_terminate_build 0
 
@@ -46,6 +49,9 @@ install -D -m 0755 rb-scanner-request %{buildroot}%{rb_bin_path}/rb-scanner-requ
 cd ../../service
 install -D -m 644 redborder-scanner.service %{buildroot}/usr/lib/systemd/system/redborder-scanner.service
 
+cd ../service/scripts
+install -D -m 644 rb_scan_vulnerabilities.sh %{buildroot}%{rb_redborder_bin}rb_scan_vulnerabilities.sh
+install -D -m 644 rb_scan_vulnerabilities.rb %{buildroot}%{rb_redborder_bin}rb_scan_vulnerabilities.rb
 
 %pre
 
