@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"net/http"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // APIClientConfig stores the client api configuration
@@ -66,5 +66,5 @@ type Scan struct {
 
 // absolute paths of scripts used
 var HostDiscovery string = "/opt/rb/bin/rb_host_discovery.sh"
-var VulnerabiliesScan string = "/opt/rb/bin/rb_scan_vulnerabilities.sh"
+// var VulnerabilitiesScan string = "/opt/rb/bin/rb_scan_vulnerabilities.sh"
 var PortScan string = "/opt/rb/bin/rb_port_scan.sh"

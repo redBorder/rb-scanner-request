@@ -1,0 +1,12 @@
+[Unit]
+Description=redborder-scanner service
+
+[Service]
+EnvironmentFile=-/etc/sysconfig/rb-scanner-request/
+ExecStart=/var/rb-scanner-request/bin/rb-scanner-request -url "https://$RBDOMAIN" -config "/var/rb-scanner-request/conf/config.json"
+Restart=always
+User=rb-scanner
+Group=rb-scanner
+
+[Install]
+WantedBy=multi-user.target

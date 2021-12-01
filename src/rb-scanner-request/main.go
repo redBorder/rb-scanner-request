@@ -9,7 +9,7 @@ import (
 	"os"
 	"fmt"
 	"syscall"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/x-cray/logrus-prefixed-formatter"
 )
 
@@ -32,6 +32,7 @@ var (
 	insecure      *bool       // If true, skip SSL verification
 	certFile      *string     // Path to store de certificate
 	dbFile        *string     // File to persist the state
+	VulnerabilitiesScan     string     // Set the vulnerabilities script path
 )
 
 func init(){
@@ -43,6 +44,8 @@ func init(){
 	insecure = flag.Bool("no-check-certificate", true, "Dont check if the certificate is valid")
 	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	versionFlag := flag.Bool("version", false, "Display version")
+	VulnerabilitiesScan := flag.String("vuls", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
+
 
 	flag.Parse()
 
@@ -64,6 +67,7 @@ func init(){
 	logger.Info("URL : ", *URL)
 	logger.Info("sleeptime : ", *sleepTime)
 	logger.Info("config file : ", *config)
+    logger.Info("vulnerabilities script path : ", VulnerabilitiesScan)
 
 	readConfigFile(*config)
 	readDbFile(*dbFile)

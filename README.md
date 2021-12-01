@@ -35,4 +35,6 @@ Usage of **rb-scanner-resquest** and default values:
   	Time between requests in seconds (default 300)
 -url string
   	Protocol and hostname to connect (default "http://localhost")
+-vuls string
+    Set the vulnerabilities scanner script path  	
 ```

@@ -1,4 +1,4 @@
-package: github.com/redBorder/rb-scanner-request
+package: rb-scanner-request
 import:
 - package: github.com/Sirupsen/logrus
   version: ^0.10.0

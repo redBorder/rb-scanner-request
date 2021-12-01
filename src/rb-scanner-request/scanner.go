@@ -2,7 +2,7 @@ package main
 
 import (
   "os/exec"
-  "github.com/Sirupsen/logrus"
+  "github.com/sirupsen/logrus"
   "strconv"
 )
 
@@ -28,7 +28,7 @@ func (scan *Scanner) StartScan(j Job) (pid int, err error) {
 	logger := db.config.Logger
 
 	logger.Info("start scan for id ", j.Id)
-	cmd := exec.Command(VulnerabiliesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid))
+	cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid))
 	err = cmd.Start()
 	if err != nil {
 		return 0, err
