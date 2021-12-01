@@ -1,7 +1,6 @@
 #!/bin/bash
 
-source /etc/profile.d/rvm.sh
-source /etc/profile.d/redBorder-*
+source /etc/profile/
 
 TARGET=""
 PORTS="all"
@@ -34,4 +33,4 @@ if [ "x$SCAN_ID" == "x" ]; then
     exit
 fi
 
-ruby /opt/rb/bin/rb_scan_vulnerabilities.rb $TARGET $PORTS $SCAN_ID
+ruby /usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb $TARGET $PORTS $SCAN_ID

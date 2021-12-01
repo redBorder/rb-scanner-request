@@ -49,9 +49,9 @@ install -D -m 0755 rb-scanner-request %{buildroot}%{rb_bin_path}/rb-scanner-requ
 cd ../../service
 install -D -m 644 redborder-scanner.service %{buildroot}/usr/lib/systemd/system/redborder-scanner.service
 
-cd ../service/scripts
+cd ../scripts
 install -D -m 644 rb_scan_vulnerabilities.sh %{buildroot}%{rb_redborder_bin}rb_scan_vulnerabilities.sh
-install -D -m 644 rb_scan_vulnerabilities.rb %{buildroot}%{rb_redborder_bin}rb_scan_vulnerabilities.rb
+install -D -m 644 rb_scan_vulnerabilities.rb %{buildroot}%{rb_redborder_scripts}rb_scan_vulnerabilities.rb
 
 %pre
 
@@ -62,6 +62,10 @@ install -D -m 644 rb_scan_vulnerabilities.rb %{buildroot}%{rb_redborder_bin}rb_s
 %{rb_bin_path}
 %defattr(644,root,root)
 /usr/lib/systemd/system/redborder-scanner.service
+%defattr(755,root,root)
+/usr/lib/redborder/bin/rb_scan_vulnerabilities.sh
+%defattr(755,root,root)
+/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb
 
 %doc
 
