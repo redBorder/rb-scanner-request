@@ -29,7 +29,7 @@ BuildRequires: glide
 
 %install
 ls
-mkdir -p %{buildroot}%{rb_bin_path}
+#mkdir -p %{buildroot}%{rb_bin_path}
 #mkdir -p %{buildroot}/usr/lib/systemd/system/
 export GOPATH=/builddir/build/BUILD/%{name}-%{version}
 export GOBIN=/usr/lib/golang/bin/go
@@ -44,7 +44,7 @@ export PATH=$PATH:$GOPATH
 cd src
 cd rb-scanner-request
 (make)
-install -D -m 0755 rb-scanner-request %{buildroot}%{rb_bin_path}/rb-scanner-request
+install -D -m 0755 rb-scanner-request %{buildroot}%{rb_bin_path}rb-scanner-request
 
 cd ../../service
 install -D -m 644 redborder-scanner.service %{buildroot}/usr/lib/systemd/system/redborder-scanner.service
@@ -59,7 +59,7 @@ install -D -m 644 rb_scan_vulnerabilities.rb %{buildroot}%{rb_redborder_scripts}
 
 %files
 %defattr(0755,root,root)
-%{rb_bin_path}
+/usr/bin/rb-scanner-request
 %defattr(644,root,root)
 /usr/lib/systemd/system/redborder-scanner.service
 %defattr(755,root,root)
