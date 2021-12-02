@@ -1,4 +1,4 @@
-%global rb_bin_path "/var/rb-scanner-request/bin/"
+%global rb_bin_path "/usr/bin/"
 %global rb_redborder_bin "/usr/lib/redborder/bin/"
 %global rb_redborder_scripts "/usr/lib/redborder/scripts/"
 
