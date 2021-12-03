@@ -3,7 +3,7 @@ Description=redborder-scanner service
 
 [Service]
 EnvironmentFile=-/etc/sysconfig/rb-scanner-request
-ExecStart=/usr/bin/rb-scanner-request -url "https://$RBDOMAIN" -config "/usr/share/redborder-scanner/conf/config.json"
+ExecStart=/usr/bin/rb-scanner-request -url $RBDOMAIN_URL -vuls $VULS_SCRIPT -config "/usr/share/redborder-scanner/conf/config.json"
 
 [Install]
 WantedBy=multi-user.target

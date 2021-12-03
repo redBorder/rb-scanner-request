@@ -32,7 +32,7 @@ var (
 	insecure      *bool       // If true, skip SSL verification
 	certFile      *string     // Path to store de certificate
 	dbFile        *string     // File to persist the state
-	VulnerabilitiesScan     string     // Set the vulnerabilities script path
+	VulnerabilitiesScan     *string     // Set the vulnerabilities script path
 )
 
 func init(){
