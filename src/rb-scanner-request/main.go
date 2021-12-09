@@ -32,7 +32,7 @@ var (
 	insecure      *bool       // If true, skip SSL verification
 	certFile      *string     // Path to store de certificate
 	dbFile        *string     // File to persist the state
-	VulnerabilitiesScan     *string     // Set the vulnerabilities script path
+	vuls          *string     // Vulnerabilities scan script path
 )
 
 func init(){
@@ -44,8 +44,7 @@ func init(){
 	insecure = flag.Bool("no-check-certificate", true, "Dont check if the certificate is valid")
 	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	versionFlag := flag.Bool("version", false, "Display version")
-	VulnerabilitiesScan := flag.String("vuls", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
-
+	vuls = flag.String("vuls", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
 
 	flag.Parse()
 
@@ -67,7 +66,10 @@ func init(){
 	logger.Info("URL : ", *URL)
 	logger.Info("sleeptime : ", *sleepTime)
 	logger.Info("config file : ", *config)
-    logger.Info("vulnerabilities script path : ", VulnerabilitiesScan)
+    logger.Info("vulnerabilities script path : ", *vuls)
+    logger.Info("Scan jobs database: ", *dbFile)
+
+    VulnerabilitiesScan = *vuls
 
 	readConfigFile(*config)
 	readDbFile(*dbFile)

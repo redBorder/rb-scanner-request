@@ -26,8 +26,8 @@ import (
 const (
 	sqlCreateTable           = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255))"
 	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid) values (?, ?, ?, ?, ?)"
-	sqlUpdatePid             = "UPDATE Scanjobs SET Pid = $2 WHERE Id = $1"
-	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = $2 WHERE Id = $1"
+	sqlUpdatePid             = "UPDATE Scanjobs SET Pid = ? WHERE Id = ?"
+	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
 	sqlSelectNonFinishedJobs = "SELECT * FROM Scanjobs WHERE status != \"finished\""
 	sqlSelectScanJob         = "SELECT * FROM Scanjobs WHERE Id = $1"
 )
@@ -53,7 +53,7 @@ func NewDatabase(config DatabaseConfig) *Database {
 	}
 
 	var err error
-	db.config.sqldb, err = sql.Open("sqlite3", db.config.dbFile)
+	db.config.sqldb, err = sql.Open("sqlite3", db.config.dbFile + "?mode=rwc")
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -128,7 +128,8 @@ func (db *Database) InsertJobPid(id int, pid int) (err error) {
 	logger := db.config.Logger
 	logger.Info("insert pid into db ", pid)
 	logger.Info("id is ", id)
-	if _, err = db.config.sqldb.Exec(sqlUpdatePid, id, pid); err != nil {
+
+	if _, err = db.config.sqldb.Exec(sqlUpdatePid, pid, id); err != nil {
 		return err
 	}
 	logger.Info("pid inserted in database ", pid)
@@ -138,7 +139,7 @@ func (db *Database) InsertJobPid(id int, pid int) (err error) {
 func (db *Database) setJobStatus(id int, status string) (err error) {
 	logger := db.config.Logger
 	logger.Info("set status for job with id ", id, " to ", status)
-	if _, err = db.config.sqldb.Exec(sqlUpdateStatus, id, status); err != nil {
+	if _, err = db.config.sqldb.Exec(sqlUpdateStatus, status, id); err != nil {
 		return err
 	}
 	return nil
