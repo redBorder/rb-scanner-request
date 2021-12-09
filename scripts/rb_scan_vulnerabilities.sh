@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source /etc/profile/
+source /etc/profile.d/rvm.sh
+source /etc/profile.d/redBorder-*
 
 TARGET=""
 PORTS="all"

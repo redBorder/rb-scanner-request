@@ -32,9 +32,13 @@ Usage of **rb-scanner-resquest** and default values:
 -pid string
   	File containing PID (default "pid")
 -sleep int
-  	Time between requests in seconds (default 300)
+  	Time between requests in seconds (default 60)
 -url string
   	Protocol and hostname to connect (default "http://localhost")
 -vuls string
-    Set the vulnerabilities scanner script path  	
+    Set the vulnerabilities scanner script path (default: "/opt/rb/bin/rb_scan_vulnerabilities.sh")
+-config string
+    Set the configuration file path (default: "./sensor.json")
+-db string
+    Set the sql database file path (default: "./scanjobs.sql")            	
 ```
