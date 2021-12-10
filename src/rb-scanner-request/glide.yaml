@@ -21,7 +21,7 @@ import:
   subpackages:
   - hooks/syslog
 - package: github.com/mattn/go-sqlite3
-  version: ^1.1.0
+  version: 3392062c729d77820afc1f5cae3427f0de39e954
 - package: github.com/sevlyar/go-daemon
   version: ^0.1.0
 testImport:
