@@ -9,7 +9,7 @@ import (
 	"os"
 	"fmt"
 	"syscall"
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/x-cray/logrus-prefixed-formatter"
 )
 
