@@ -1,19 +1,17 @@
-%define _binaries_in_noarch_packages_terminate_build 0
-%define _unpackaged_files_terminate_build 0
-
 Name: rb-scanner-request
 Version: %{__version}
 Release: %{__release}%{?dist}
-BuildArch: noarch
-Summary: rpm used to install rb-scanner-request in a redborder ng
 
 License: AGPL 3.0
 URL: https://github.com/redBorder/rb-scanner-request
 Source0: %{name}-%{version}.tar.gz
 
 BuildRequires: go = 1.6.3
-BuildRequires: glide rsync gcc
+BuildRequires: glide rsync gcc git
 BuildRequires:	rsync mlocate
+
+Summary: rpm used to install rb-scanner-request in a redborder ng
+Group:   Development/Libraries/Go
 
 %description
 %{summary}
@@ -33,19 +31,23 @@ cd $GOPATH/src/github.com/redBorder/rb-scanner-request
 make
 
 %install
+mkdir -p %{buildroot}/usr/bin
+mkdir -p %{buildroot}/usr/lib/redborder/bin
+mkdir -p %{buildroot}/usr/lib/redborder/scripts
+mkdir -p %{buildroot}/usr/share/rb-scanner-request
+mkdir -p %{buildroot}/etc/rb-scanner-request
+
 export PARENT_BUILD=${PWD}
 export GOPATH=${PWD}/gopath
 export PATH=${GOPATH}:${PATH}
-cd $GOPATH/src/github.com/redBorder/rb-scanner-request
-mkdir -p %{buildroot}/usr/bin
-mkdir -p %{buildroot}/usr/share/rb-scanner-request
-mkdir -p %{buildroot}/etc/rb-scanner-request
+pushd $GOPATH/src/github.com/redBorder/rb-scanner-request
 prefix=%{buildroot}/usr make install
 
-install -D -m 644 redborder-scanner.service %{buildroot}/usr/lib/systemd/system/redborder-scanner.service
-install -D -m 644 rb_scan_vulnerabilities.sh %{buildroot}%/usr/lib/redborder/bin/rb_scan_vulnerabilities.sh
-install -D -m 644 rb_scan_vulnerabilities.rb %{buildroot}%/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb
+popd
+cp resources/bin/* %{buildroot}/usr/lib/redborder/bin
+cp resources/scripts/* %{buildroot}/usr/lib/redborder/scripts
 
+install -D -m 0644 resources/systemd/redborder-scanner.service %{buildroot}/usr/lib/systemd/system/redborder-scanner.service
 
 %clean
 rm -rf %{buildroot}
@@ -53,6 +55,8 @@ rm -rf %{buildroot}
 %pre
 
 %post
+/usr/lib/redborder/bin/rb_rubywrapper.sh -c
+systemctl daemon-reload
 
 %files
 %defattr(0755,root,root)
