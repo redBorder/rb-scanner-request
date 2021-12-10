@@ -34,4 +34,12 @@ if [ "x$SCAN_ID" == "x" ]; then
     exit
 fi
 
-ruby /usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb $TARGET $PORTS $SCAN_ID
+
+SCRIPT_RUBY_PATH="/opt/rb/bin/rb_scan_vulnerabilities.rb"
+
+# If we are in redborder-ng ..
+if [[ -f "/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb" ]]; then
+  SCRIPT_RUBY_PATH="/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb"
+fi
+
+ruby $SCRIPT_RUBY_PATH $TARGET $PORTS $SCAN_ID
