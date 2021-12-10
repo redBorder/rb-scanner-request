@@ -1,5 +1,8 @@
 package: github.com/redBorder/rb-scanner-request
 import:
+- package: github.com/mattn/go-isatty
+  version: 57fdcb988a5c543893cc61bce354a6e24ab70022
+  repo: https://github.com/mattn/go-isatty
 - package: github.com/capnm/sysinfo
   version: 5909a53897f32d198d9c81e3417f6d25ecfd2229
 - package: golang.org/x/crypto
