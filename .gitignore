@@ -1,3 +1,6 @@
 # RPM
 pkgs
 SOURCES
+src/rb-scanner-request/glide.lock
+src/rb-scanner-request/rb-scanner-request
+src/rb-scanner-request/vendor
