@@ -1,5 +1,19 @@
 package: github.com/redBorder/rb-scanner-request
 import:
+- package: github.com/capnm/sysinfo
+  version: 5909a53897f32d198d9c81e3417f6d25ecfd2229
+- package: golang.org/x/crypto
+  version: 5770296d904e90f15f38f77dfc2e43fdf5efc083
+  subpackages:
+  - ssh/terminal
+- package: golang.org/x/sys
+  version: b9e8d468b01f806830d387bd9a1fe96dc68129d1
+  subpackages:
+  - plan9
+  - unix
+  - windows
+- package: golang.org/x/term
+  version: 03fcf44c2211dcd5eb77510b5f7c1fb02d6ded50
 - package: github.com/x-cray/logrus-prefixed-formatter
   version: ~0.3.2
 - package: github.com/Sirupsen/logrus
