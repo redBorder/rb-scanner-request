@@ -7,11 +7,9 @@ import:
   subpackages:
   - ssh/terminal
 - package: golang.org/x/sys
-  version: b9e8d468b01f806830d387bd9a1fe96dc68129d1
+  version: 002cbb5f952456d0c50e0d2aff17ea5eca716979
   subpackages:
-  - plan9
   - unix
-  - windows
 - package: golang.org/x/term
   version: 03fcf44c2211dcd5eb77510b5f7c1fb02d6ded50
 - package: github.com/x-cray/logrus-prefixed-formatter
@@ -21,7 +19,7 @@ import:
   subpackages:
   - hooks/syslog
 - package: github.com/mattn/go-sqlite3
-  version: 3392062c729d77820afc1f5cae3427f0de39e954
+  version: 3b3f1d01b2696af5501697c35629048c227586ab
 - package: github.com/sevlyar/go-daemon
   version: ^0.1.0
 testImport:
