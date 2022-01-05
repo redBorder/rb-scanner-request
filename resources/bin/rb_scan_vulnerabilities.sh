@@ -11,11 +11,12 @@ function usage() {
   echo "$0 [-t <target> -p <ports> -s <scan id>][-h]"
 }
 
-while getopts "t:p:s:h" name; do
+while getopts "t:p:s:e:h" name; do
   case $name in
     t) TARGET=$OPTARG ;;
     p) PORTS=$OPTARG ;;
     s) SCAN_ID=$OPTARG ;;
+    e) ENRICH=$OPTARG ;;
     h) usage ;;
   esac
 done
@@ -34,6 +35,10 @@ if [ "x$SCAN_ID" == "x" ]; then
     exit
 fi
 
+if [ "x$PORTS" == "x" ]; then
+    ENRICH="{}"
+fi
+
 
 SCRIPT_RUBY_PATH="/opt/rb/bin/rb_scan_vulnerabilities.rb"
 
@@ -42,4 +47,4 @@ if [[ -f "/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb" ]]; then
   SCRIPT_RUBY_PATH="/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb"
 fi
 
-ruby $SCRIPT_RUBY_PATH $TARGET $PORTS $SCAN_ID
+ruby $SCRIPT_RUBY_PATH $TARGET $PORTS $SCAN_ID $ENRICH

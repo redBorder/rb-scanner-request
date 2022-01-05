@@ -130,7 +130,7 @@ func main(){
 					}
 		 		}
 		 	} else if j.Status == "new" {
-				 pid, err := scanner.StartScan(j)
+		 	     pid, err := scanner.StartScan(j,sensors)
 				 if err != nil {
 					logger.Error("job could not be started", err)
 				 } else {

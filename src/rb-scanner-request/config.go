@@ -24,6 +24,13 @@ type Sensors struct {
 type Sensor struct {
     Name   string `json:"name"`
     Uuid   string `json:"uuid"`
+    ServiceProviderUuid string `json:"service_provider_uuid"`
+    Namespace string `json:"namespace"`
+    NamespaceUuid string `json:"namespace_uuid"`
+    Organization string `json:"organization"`
+    OrganizationUuid string `json:"organization_uuid"`
+    building string `json:"building"`
+    buildingUuid string `json:building_uuid`
 }
 
 // DatabaseConfig stores the database configuration
