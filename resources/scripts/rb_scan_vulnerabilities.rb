@@ -37,7 +37,8 @@ module Redborder
       @ports = ARGV[1] unless (ARGV[1] == "debug" or ARGV[1].nil?)
       @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
       @scan_id = ARGV[2] unless ARGV[2] == "debug"
-      if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (ARGV[3] == "debug")
+      @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
+      if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (!ARGV[3].nil? and ARGV[3] == "debug") or (ARGV[4] == "debug")
         @debug = true
       end
       @producer = Poseidon::Producer.new(["127.0.0.1:9092"], "vulnerabilities_cpe_producer")
@@ -95,6 +96,12 @@ module Redborder
 
       general = @general_info
       cpe = {"cpe" => cpe_string, "scan_id" => scan_id, "scan_type" => "2"}
+
+      # Enrichment if the parameter was received
+      if @enrichment != "{}" and !@enrichment.nil?
+        cpe = cpe.merge(@enrichment)
+      end
+
       msg = cpe.merge(general).to_json
       begin
         messages = []
