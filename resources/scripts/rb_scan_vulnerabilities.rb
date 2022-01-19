@@ -42,6 +42,10 @@ module Redborder
         @debug = true
       end
       @producer = Poseidon::Producer.new(["127.0.0.1:9092"], "vulnerabilities_cpe_producer")
+
+      unless @enrichment == nil
+        check_enrichment
+      end
       set_target
     end
 
@@ -87,6 +91,18 @@ module Redborder
           if address["addrtype"] == "ipv4"
             return address["addr"]
           end
+        end
+      end
+    end
+
+    # Deletes nil fields
+    def check_enrichment
+      input = @enrichment
+      field_list = %w[service_provider_uuid service_provider namespace namespace_uuid organization organization_uuid building building_uuid]
+
+      input.each do | key, value |
+        if field_list.include?(key) and ( value.empty? or value == "")
+          @enrichment.delete(key)
         end
       end
     end
