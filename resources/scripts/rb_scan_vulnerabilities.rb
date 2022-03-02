@@ -30,23 +30,27 @@ module Redborder
     NMAP_PATH = "/usr/bin/nmap"
 
     def initialize
+      begin
+        @debug = false
+        @address_list = [ARGV[0]]
+        @address_list = 'localhost' if ARGV[0].nil?
+        @ports = ARGV[1] unless (ARGV[1] == "debug" or ARGV[1].nil?)
+        @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
+        @scan_id = ARGV[2] unless ARGV[2] == "debug"
+        @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
+        if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (!ARGV[3].nil? and ARGV[3] == "debug") or (ARGV[4] == "debug")
+          @debug = true
+        end
+        @producer = Poseidon::Producer.new(["kafka.service:9092"], "vulnerabilities_cpe_producer")
 
-      @debug = false
-      @address_list = [ARGV[0]]
-      @address_list = 'localhost' if ARGV[0].nil?
-      @ports = ARGV[1] unless (ARGV[1] == "debug" or ARGV[1].nil?)
-      @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
-      @scan_id = ARGV[2] unless ARGV[2] == "debug"
-      @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
-      if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (!ARGV[3].nil? and ARGV[3] == "debug") or (ARGV[4] == "debug")
-        @debug = true
+        unless @enrichment == nil
+          check_enrichment
+        end
+        set_target
+      rescue => e
+        puts "Error in vulnerabilities scanner"
+        puts  e
       end
-      @producer = Poseidon::Producer.new(["127.0.0.1:9092"], "vulnerabilities_cpe_producer")
-
-      unless @enrichment == nil
-        check_enrichment
-      end
-      set_target
     end
 
     def set_target
@@ -80,7 +84,7 @@ module Redborder
     end
 
     def refresh_kafka_producer
-      @producer = Poseidon::Producer.new(["127.0.0.1:9092"], "vulnerabilities_cpe_producer")
+      @producer = Poseidon::Producer.new(["kafka.service:9092"], "vulnerabilities_cpe_producer")
     end
 
     def get_host(host)
