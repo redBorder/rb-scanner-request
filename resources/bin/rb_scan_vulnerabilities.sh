@@ -1,15 +1,16 @@
 #!/bin/bash
 
 source /etc/profile.d/rvm.sh
-source /etc/profile.d/redBorder-*
 
 TARGET=""
 PORTS="all"
 SCAN_ID=""
 
 function usage() {
-  echo "$0 [-t <target> -p <ports> -s <scan id>][-h]"
+  echo "$0 [-t <target> -p <ports> -s <scan id> -e <enrichment>][-h]"
 }
+
+IFS=$'\n\t'
 
 while getopts "t:p:s:e:h" name; do
   case $name in
