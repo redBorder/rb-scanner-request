@@ -269,7 +269,18 @@ module Redborder
         port = Hash.from_xml(port)
         port = port["nmaprun"]["scaninfo"]["services"]
 	port = port.split(',')
+	#Convert [3-5] to 3,4,5
+	port = port.map do |sub_port_list|
+          if sub_port_list.include?('-')
+            from_to = sub_port_list.split('-')
+	    sub_array = Array(from_to.first..from_to.last)
+          else
+            sub_port_list
+          end
+        end
+        port.flatten!
       end
+      p port
       if port.class == Array and port.size > BATCH_PORT_SIZE
         get_vulnerabilities(port[0,BATCH_PORT_SIZE], scan_id)
         get_vulnerabilities(port[BATCH_PORT_SIZE..-1], scan_id)
@@ -280,7 +291,6 @@ module Redborder
       @general_info = {}
 
       #port = port.delete(' ')
-      p port
       if port.all? {|p| p.to_i < 0} 
         response = `#{NMAP_PATH} -sV -n -oX - #{@address}`
       else
