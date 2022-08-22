@@ -28,29 +28,24 @@ module Redborder
     attr_accessor :address, :is_database
     attr_accessor :nmap_query, :response_hash, :general_info, :producer
     NMAP_PATH = "/usr/bin/nmap"
-
+    BATCH_PORT_SIZE = 10    
     def initialize
-      begin
-        @debug = false
-        @address_list = [ARGV[0]]
-        @address_list = 'localhost' if ARGV[0].nil?
-        @ports = ARGV[1] unless (ARGV[1] == "debug" or ARGV[1].nil?)
-        @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
-        @scan_id = ARGV[2] unless ARGV[2] == "debug"
-        @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
-        if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (!ARGV[3].nil? and ARGV[3] == "debug") or (ARGV[4] == "debug")
-          @debug = true
-        end
-        @producer = Poseidon::Producer.new(["kafka.service:9092"], "vulnerabilities_cpe_producer")
-
-        unless @enrichment == nil
-          check_enrichment
-        end
-        set_target
-      rescue => e
-        puts "Error in vulnerabilities scanner"
-        puts  e
+      @debug = false
+      @address_list = [ARGV[0]]
+      @address_list = 'localhost' if ARGV[0].nil?
+      @ports = ARGV[1] unless (ARGV[1] == "debug" or ARGV[1].nil?)
+      @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
+      @scan_id = ARGV[2] unless ARGV[2] == "debug"
+      @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
+      if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (!ARGV[3].nil? and ARGV[3] == "debug") or (ARGV[4] == "debug")
+        @debug = true
       end
+      refresh_kafka_producer
+
+      unless @enrichment == nil
+        check_enrichment
+      end
+      set_target
     end
 
     def set_target
@@ -65,14 +60,12 @@ module Redborder
             hosts.each do |host|
               host_ip = get_host(host)
               @address = host_ip
-              refresh_kafka_producer
               puts "\n------------------> Analysing (List): " + host_ip.to_s if @debug
               get_vulnerabilities(@ports, @scan_id)
             end
           else
             host_ip = get_host(response["nmaprun"]["host"])
             @address = host_ip
-            refresh_kafka_producer
             puts "\n------------------> Analysing " + host_ip.to_s if @debug
             get_vulnerabilities(@ports, @scan_id)
           end
@@ -84,7 +77,7 @@ module Redborder
     end
 
     def refresh_kafka_producer
-      @producer = Poseidon::Producer.new(["kafka.service:9092"], "vulnerabilities_cpe_producer")
+      @producer = Poseidon::Producer.new(["127.0.0.1:9092"], "vulnerabilities_cpe_producer")
     end
 
     def get_host(host)
@@ -113,7 +106,7 @@ module Redborder
 
     # Method to produce to a kafka topic
     def produce_to_kafka(cpe_string, scan_id, topic)
-
+      refresh_kafka_producer
       general = @general_info
       cpe = {"cpe" => cpe_string, "scan_id" => scan_id, "scan_type" => "2"}
 
@@ -271,80 +264,89 @@ module Redborder
     # Parameters:
     # => port: ports to scan (could be empty for all ports scan)
     def get_vulnerabilities(port, scan_id)
+      if (port == "all" or port=="")
+        port = `#{NMAP_PATH} -sV -oX -` #get default ports to sniff
+        port = Hash.from_xml(port)
+        port = port["nmaprun"]["scaninfo"]["services"]
+	port = port.split(',')
+      end
+      if port.class == Array and port.size > BATCH_PORT_SIZE
+        get_vulnerabilities(port[0,BATCH_PORT_SIZE], scan_id)
+        get_vulnerabilities(port[BATCH_PORT_SIZE..-1], scan_id)
+        return
+      end
+
       @response_hash = {}
       @general_info = {}
 
-      port = port.delete(' ')
+      #port = port.delete(' ')
+      p port
+      if port.all? {|p| p.to_i < 0} 
+        response = `#{NMAP_PATH} -sV -n -oX - #{@address}`
+      else
+        port = port.join(",")
+        response = `#{NMAP_PATH} -p #{port} -sV -n -oX - #{@address}`
+      end
+      nmap_response = Hash.from_xml(response)
 
-      if port == "" then port="all" end
+      # Check if server is alive:
+      server_up = nmap_response["nmaprun"]["runstats"]["hosts"]["up"]
+      puts "IP: "+@address+"\n" if @debug
+      if server_up == '1'
 
-      if port_eval(port) or port == "all"
-        if port.to_i < 0 or port.downcase == "all"
-          response = `#{NMAP_PATH} -sV -n -oX - #{@address}`
+        cpe_list=[]
+        @response_hash["ports"] = {}
+
+        if nmap_response["nmaprun"]["host"]["address"].class != Array
+          @general_info["ipv4"] = nmap_response["nmaprun"]["host"]["address"]["addr"]
         else
-          response = `#{NMAP_PATH} -p #{port.strip} -sV -n -oX - #{@address}`
+          nmap_response["nmaprun"]["host"]["address"].each do |address|
+            @general_info["ipv4"] = address["addr"] if address["addrtype"] == "ipv4"
+            @general_info["mac"] = address["addr"] if address["addrtype"] == "mac"
+          end
         end
-        nmap_response = Hash.from_xml(response)
 
-        # Check if server is alive:
-        server_up = nmap_response["nmaprun"]["runstats"]["hosts"]["up"]
-        puts "IP: "+@address+"\n" if @debug
-        if server_up == '1'
+        @general_info["timestamp"] = nmap_response["nmaprun"]["start"].to_i
 
-          cpe_list=[]
-          @response_hash["ports"] = {}
+        cpe_info = get_cpe_list(nmap_response)
 
-          if nmap_response["nmaprun"]["host"]["address"].class != Array
-            @general_info["ipv4"] = nmap_response["nmaprun"]["host"]["address"]["addr"]
-          else
-            nmap_response["nmaprun"]["host"]["address"].each do |address|
-              @general_info["ipv4"] = address["addr"] if address["addrtype"] == "ipv4"
-              @general_info["mac"] = address["addr"] if address["addrtype"] == "mac"
+        if !cpe_info.empty?
+          cpe_list = cpe_info["cpe_list"]
+          cpe_ports = cpe_info["cpe_ports"]
+          cpe_text = cpe_info["cpe_text"]
+
+          cpe_list.each do |cpe|
+
+            puts "\n" + "------------------------------\n" + "\nVulnerabilities:  " + cpe + "\n" if @debug
+
+            if cpe_text[cpe] != nil
+              puts cpe_text[cpe] if @debug
             end
-          end
 
-          @general_info["timestamp"] = nmap_response["nmaprun"]["start"].to_i
+            cpe_string = cpe.gsub("cpe:/a", "cpe:2.3:a")
 
-          cpe_info = get_cpe_list(nmap_response)
-
-          if !cpe_info.empty?
-            cpe_list = cpe_info["cpe_list"]
-            cpe_ports = cpe_info["cpe_ports"]
-            cpe_text = cpe_info["cpe_text"]
-
-            cpe_list.each do |cpe|
-
-              puts "\n" + "------------------------------\n" + "\nVulnerabilities:  " + cpe + "\n" if @debug
-
-              if cpe_text[cpe] != nil
-                puts cpe_text[cpe] if @debug
-              end
-
-              cpe_string = cpe.gsub("cpe:/a", "cpe:2.3:a")
-
-              if cpe.include? "%2B" ## cleaning trash in nmap code
-                cpe_aux = cpe_string.split("%2B")
-                cpe_string = cpe_aux[0]
-                cpe_string = cpe_string + "*"
-              end
-
-              @general_info["product"] = @response_hash["ports"][cpe_ports[cpe]]["product"] if @response_hash["ports"][cpe_ports[cpe]]["product"] != nil
-              @general_info["version"] = @response_hash["ports"][cpe_ports[cpe]]["version"] if @response_hash["ports"][cpe_ports[cpe]]["version"] != nil
-              @general_info["servicename"] = @response_hash["ports"][cpe_ports[cpe]]["name"] if @response_hash["ports"][cpe_ports[cpe]]["name"] != nil
-              @general_info["protocol"] = @response_hash["ports"][cpe_ports[cpe]]["protocol"] if @response_hash["ports"][cpe_ports[cpe]]["protocol"] != nil
-              @general_info["port_state"] = @response_hash["ports"][cpe_ports[cpe]]["port_state"] if @response_hash["ports"][cpe_ports[cpe]]["port_state"] != nil
-              @general_info["port"] = cpe_ports[cpe]
-
-              produce_to_kafka(cpe_string, scan_id, "rb_scanner")
-              puts "Kafka message sent: " + cpe_string.to_s if @debug
+            if cpe.include? "%2B" ## cleaning trash in nmap code
+              cpe_aux = cpe_string.split("%2B")
+              cpe_string = cpe_aux[0]
+              cpe_string = cpe_string + "*"
             end
-            @producer.close()
-          else
-            puts "All Ports closed in #{address} " if @debug
+
+            @general_info["product"] = @response_hash["ports"][cpe_ports[cpe]]["product"] if @response_hash["ports"][cpe_ports[cpe]]["product"] != nil
+            @general_info["version"] = @response_hash["ports"][cpe_ports[cpe]]["version"] if @response_hash["ports"][cpe_ports[cpe]]["version"] != nil
+            @general_info["servicename"] = @response_hash["ports"][cpe_ports[cpe]]["name"] if @response_hash["ports"][cpe_ports[cpe]]["name"] != nil
+            @general_info["protocol"] = @response_hash["ports"][cpe_ports[cpe]]["protocol"] if @response_hash["ports"][cpe_ports[cpe]]["protocol"] != nil
+            @general_info["port_state"] = @response_hash["ports"][cpe_ports[cpe]]["port_state"] if @response_hash["ports"][cpe_ports[cpe]]["port_state"] != nil
+            @general_info["port"] = cpe_ports[cpe]
+
+            produce_to_kafka(cpe_string, scan_id, "rb_scanner")
+            puts "Kafka message sent: " + cpe_string.to_s if @debug
           end
+          @producer.close()
         else
-          puts "Server with IP #{address} down." if @debug
+          puts "All Ports closed in #{address} " if @debug
         end
+      else
+        puts "Server with IP #{address} down." if @debug
       end
     end
 
