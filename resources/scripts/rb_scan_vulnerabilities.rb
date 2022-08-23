@@ -37,11 +37,16 @@ module Redborder
       @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
       @scan_id = ARGV[2] unless ARGV[2] == "debug"
       @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
-      if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (!ARGV[3].nil? and ARGV[3] == "debug") or (ARGV[4] == "debug")
-        @debug = true
+      @kafka_address = ARGV[4] ? ARGV[4] : "127.0.0.1:9092"             #TODO: call consul to get this address. 127.0.0.1 could not have kafka if this machine is part of a cluster
+      
+      for arg in 1..4 do
+        if (!ARGV[arg].nil? and ARGV[arg] == "debug")
+          @debug = true
+	        break
+        end
       end
+      @debug = true if ARGV[5] == "debug"
       refresh_kafka_producer
-
       unless @enrichment == nil
         check_enrichment
       end
@@ -77,7 +82,7 @@ module Redborder
     end
 
     def refresh_kafka_producer
-      @producer = Poseidon::Producer.new(["127.0.0.1:9092"], "vulnerabilities_cpe_producer")
+      @producer = Poseidon::Producer.new([@kafka_address], "vulnerabilities_cpe_producer")
     end
 
     def get_host(host)
@@ -269,7 +274,7 @@ module Redborder
         port = Hash.from_xml(port)
         port = port["nmaprun"]["scaninfo"]["services"]
       end
-      port = port.split(',')
+      port = port.split(',') unless port.class==Array
       #Convert [3-5] to 3,4,5
       port = port.map do |sub_port_list|
         if sub_port_list.include?('-')
