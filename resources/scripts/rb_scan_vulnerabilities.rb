@@ -262,25 +262,24 @@ module Redborder
 
     # Main vulnerabilities function
     # Parameters:
-    # => port: ports to scan (could be empty for all ports scan)
+    # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, )
     def get_vulnerabilities(port, scan_id)
       if (port == "all" or port=="")
         port = `#{NMAP_PATH} -sV -oX -` #get default ports to sniff
         port = Hash.from_xml(port)
         port = port["nmaprun"]["scaninfo"]["services"]
-	port = port.split(',')
-	#Convert [3-5] to 3,4,5
-	port = port.map do |sub_port_list|
-          if sub_port_list.include?('-')
-            from_to = sub_port_list.split('-')
-	    sub_array = Array(from_to.first..from_to.last)
-          else
-            sub_port_list
-          end
-        end
-        port.flatten!
       end
-      p port
+      port = port.split(',')
+      #Convert [3-5] to 3,4,5
+      port = port.map do |sub_port_list|
+        if sub_port_list.include?('-')
+          from_to = sub_port_list.split('-')
+          sub_array = Array(from_to.first..from_to.last)
+        else
+          sub_port_list
+        end
+      end
+      port.flatten!
       if port.class == Array and port.size > BATCH_PORT_SIZE
         get_vulnerabilities(port[0,BATCH_PORT_SIZE], scan_id)
         get_vulnerabilities(port[BATCH_PORT_SIZE..-1], scan_id)
