@@ -260,26 +260,35 @@ module Redborder
       end
     end
 
+    #Convert [3-5] to 3,4,5
+    def flatten_port(port)
+      port = port.map do |sub_port_list|
+        if sub_port_list.include?('-')
+          from_to = sub_port_list.split('-')
+          Array(from_to.first..from_to.last)
+        else
+          sub_port_list #Bypass = do nothing
+        end
+      end
+      port.flatten
+    end
+
+    def get_default_ports #(protocol=:tcp)
+      # protocol_arg = '-sT' if protocol == :tcp
+      # protocol_arg = '-sU' if protocol == :udp
+      # response = `#{NMAP_PATH} #{protocol_arg} -oX -` #get default ports to sniff
+      response = `#{NMAP_PATH} -sV -oX -` #get default ports to sniff
+      map = Hash.from_xml(response)
+      ports = map["nmaprun"]["scaninfo"]["services"]
+    end
+
     # Main vulnerabilities function
     # Parameters:
     # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, )
     def get_vulnerabilities(port, scan_id)
-      if (port == "all" or port=="")
-        port = `#{NMAP_PATH} -sV -oX -` #get default ports to sniff
-        port = Hash.from_xml(port)
-        port = port["nmaprun"]["scaninfo"]["services"]
-      end
+      port = get_default_ports if (port == "all" or port=="")
       port = port.split(',')
-      #Convert [3-5] to 3,4,5
-      port = port.map do |sub_port_list|
-        if sub_port_list.include?('-')
-          from_to = sub_port_list.split('-')
-          sub_array = Array(from_to.first..from_to.last)
-        else
-          sub_port_list
-        end
-      end
-      port.flatten!
+      port = flatten_port(port)
       if port.class == Array and port.size > BATCH_PORT_SIZE
         get_vulnerabilities(port[0,BATCH_PORT_SIZE], scan_id)
         get_vulnerabilities(port[BATCH_PORT_SIZE..-1], scan_id)
@@ -290,7 +299,7 @@ module Redborder
       @general_info = {}
 
       #port = port.delete(' ')
-      if port.all? {|p| p.to_i < 0} 
+      if port.all? {|p| p.to_i < 0} #WHY?
         response = `#{NMAP_PATH} -sV -n -oX - #{@address}`
       else
         port = port.join(",")
