@@ -165,49 +165,48 @@ module Redborder
       cpe_text = {}
 
       path = response["nmaprun"]["host"]["ports"]["port"]
-      if path != nil ##not closed ports
+      if path != nil ##not closed ports.    Not really: port 36 is closed but appears here
         unless path.class == Array
           path = [path]
         end
         path.each do |service|
-          if service.class == Hash
-            if service["service"]["cpe"] != nil ## if service has cpe
-              cpe = check_deprecated(service["service"]["cpe"])
-              if service["service"]["product"] != nil
-                cpe_text[cpe] = "\nPort: " + service["portid"] + "  " + service["service"]["product"].to_s + " " + service["service"]["version"].to_s + "\n"
-              end
-              portid = service["portid"]
+	        is_valid_service = service.class == Hash && service["service"] != nil && service["service"]["cpe"] != nil
+          if is_valid_service
+            cpe = check_deprecated(service["service"]["cpe"])
+            if service["service"]["product"] != nil
+              cpe_text[cpe] = "\nPort: " + service["portid"] + "  " + service["service"]["product"].to_s + " " + service["service"]["version"].to_s + "\n"
+            end
+            portid = service["portid"]
 
-              if cpe.class == Array ## if cpe is a list of cpe (could be two cpe)
+            if cpe.class == Array ## if cpe is a list of cpe (could be two cpe)
 
-                aplication = ""
-                for cpe_aux in cpe
-                  if cpe_aux.include? "cpe:/a:"
-                    aplication = cpe_aux
-                  end
+              aplication = ""
+              for cpe_aux in cpe
+                if cpe_aux.include? "cpe:/a:"
+                  aplication = cpe_aux
                 end
-                cpe = aplication
               end
+              cpe = aplication
+            end
 
-              if cpe.include? "cpe:/a:" #repeat service control
-                insert = true
-                cpe_list.each do |element|
-                  if element.include? cpe
-                    insert = false
-                  end
+            if cpe.include? "cpe:/a:" #repeat service control
+              insert = true
+              cpe_list.each do |element|
+                if element.include? cpe
+                  insert = false
                 end
-                if insert
-                  cpe_list.append(cpe)
-                  if service["service"]["product"] != ""
-                    @response_hash["ports"][portid] = {}
-                    @response_hash["ports"][portid]["product"] = service["service"]["product"]
-                    @response_hash["ports"][portid]["version"] = service["service"]["version"]
-                    @response_hash["ports"][portid]["name"] = service["service"]["name"]
-                    @response_hash["ports"][portid]["protocol"] = service["protocol"]
-                    @response_hash["ports"][portid]["port_state"] = service["state"]["state"]
-                    #assign ports and cpe in hash
-                    cpe_ports[cpe] = portid
-                  end
+              end
+              if insert
+                cpe_list.append(cpe)
+                if service["service"]["product"] != ""
+                  @response_hash["ports"][portid] = {}
+                  @response_hash["ports"][portid]["product"] = service["service"]["product"]
+                  @response_hash["ports"][portid]["version"] = service["service"]["version"]
+                  @response_hash["ports"][portid]["name"] = service["service"]["name"]
+                  @response_hash["ports"][portid]["protocol"] = service["protocol"]
+                  @response_hash["ports"][portid]["port_state"] = service["state"]["state"]
+                  #assign ports and cpe in hash
+                  cpe_ports[cpe] = portid
                 end
               end
             end
@@ -287,7 +286,7 @@ module Redborder
     # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, )
     def get_vulnerabilities(port, scan_id)
       port = get_default_ports if (port == "all" or port=="")
-      port = port.split(',')
+      port = port.split(',') unless port.class == Array
       port = flatten_port(port)
       if port.class == Array and port.size > BATCH_PORT_SIZE
         get_vulnerabilities(port[0,BATCH_PORT_SIZE], scan_id)
@@ -299,10 +298,10 @@ module Redborder
       @general_info = {}
 
       #port = port.delete(' ')
-      if port.all? {|p| p.to_i < 0} #WHY?
+      if port.any? {|p| p.to_i < 0} #WHY?
         response = `#{NMAP_PATH} -sV -n -oX - #{@address}`
       else
-        port = port.join(",")
+        port = port.join(",") if port.class == Array
         response = `#{NMAP_PATH} -p #{port} -sV -n -oX - #{@address}`
       end
       nmap_response = Hash.from_xml(response)
@@ -325,7 +324,6 @@ module Redborder
         end
 
         @general_info["timestamp"] = nmap_response["nmaprun"]["start"].to_i
-
         cpe_info = get_cpe_list(nmap_response)
 
         if !cpe_info.empty?
