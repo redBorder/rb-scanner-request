@@ -288,7 +288,7 @@ module Redborder
       port = get_default_ports if (port == "all" or port=="")
       port = port.split(',') unless port.class == Array
       port = flatten_port(port)
-      if port.class == Array and port.size > BATCH_PORT_SIZE
+      if port.class == Array and port.size > BATCH_PORT_SIZE and port != "1-65535"  #for testing all ports in one nmap call
         get_vulnerabilities(port[0,BATCH_PORT_SIZE], scan_id)
         get_vulnerabilities(port[BATCH_PORT_SIZE..-1], scan_id)
         return
@@ -297,8 +297,7 @@ module Redborder
       @response_hash = {}
       @general_info = {}
 
-      #port = port.delete(' ')
-      if port.any? {|p| p.to_i < 0} #WHY?
+      if port.any? {|p| p.to_i < 0} || !port.include?('-')
         response = `#{NMAP_PATH} -sV -n -oX - #{@address}`
       else
         port = port.join(",") if port.class == Array
