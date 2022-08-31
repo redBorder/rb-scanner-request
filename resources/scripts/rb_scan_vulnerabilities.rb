@@ -28,7 +28,6 @@ module Redborder
     attr_accessor :address, :is_database
     attr_accessor :nmap_query, :response_hash, :general_info, :producer
     NMAP_PATH = "/usr/bin/nmap"
-    BATCH_PORT_SIZE = 10    
     def initialize
       @debug = false
       @address_list = [ARGV[0]]
@@ -37,21 +36,32 @@ module Redborder
       @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
       @scan_id = ARGV[2] unless ARGV[2] == "debug"
       @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
-      @kafka_address = ARGV[4] ? ARGV[4] : "127.0.0.1:9092"             #TODO: call consul to get this address. 127.0.0.1 could not have kafka if this machine is part of a cluster
+      set_batch_rate(ARGV[4])
+      @kafka_address = ARGV[5] ? ARGV[5] : "127.0.0.1:9092"             #TODO: call consul to get this address. 127.0.0.1 could not have kafka if this machine is part of a cluster
       
-      for arg in 1..4 do
+      for arg in 1..5 do
         if (!ARGV[arg].nil? and ARGV[arg] == "debug")
           @debug = true
 	        break
         end
-      end
-      @debug = true if ARGV[5] == "debug"
+
       refresh_kafka_producer
       unless @enrichment == nil
         check_enrichment
       end
       set_target
     end
+
+    def set_batch_rate (argument)
+      @batch_rate = argument ? argument.to_f : 0.1 	#default value
+      @batch_rate = 0.0 if @batch_rate < 0.0  		#clamp rate
+      @batch_rate = 1.0 if @batch_rate > 1.0
+    end
+
+    def set_batch_step (number_of_ports=65535)
+      @batch_step = number_of_ports * @batch_rate
+      @batch_step = @batch_step < 1.0 ? 1 : @batch_step.round
+    end 
 
     def set_target
       @address_list.each do |address|
@@ -170,49 +180,48 @@ module Redborder
       cpe_text = {}
 
       path = response["nmaprun"]["host"]["ports"]["port"]
-      if path != nil ##not closed ports
+      if path != nil ##not closed ports.    Not really: port 36 is closed but appears here
         unless path.class == Array
           path = [path]
         end
         path.each do |service|
-          if service.class == Hash
-            if service["service"]["cpe"] != nil ## if service has cpe
-              cpe = check_deprecated(service["service"]["cpe"])
-              if service["service"]["product"] != nil
-                cpe_text[cpe] = "\nPort: " + service["portid"] + "  " + service["service"]["product"].to_s + " " + service["service"]["version"].to_s + "\n"
-              end
-              portid = service["portid"]
+	        is_valid_service = service.class == Hash && service["service"] != nil && service["service"]["cpe"] != nil
+          if is_valid_service
+            cpe = check_deprecated(service["service"]["cpe"])
+            if service["service"]["product"] != nil
+              cpe_text[cpe] = "\nPort: " + service["portid"] + "  " + service["service"]["product"].to_s + " " + service["service"]["version"].to_s + "\n"
+            end
+            portid = service["portid"]
 
-              if cpe.class == Array ## if cpe is a list of cpe (could be two cpe)
+            if cpe.class == Array ## if cpe is a list of cpe (could be two cpe)
 
-                aplication = ""
-                for cpe_aux in cpe
-                  if cpe_aux.include? "cpe:/a:"
-                    aplication = cpe_aux
-                  end
+              aplication = ""
+              for cpe_aux in cpe
+                if cpe_aux.include? "cpe:/a:"
+                  aplication = cpe_aux
                 end
-                cpe = aplication
               end
+              cpe = aplication
+            end
 
-              if cpe.include? "cpe:/a:" #repeat service control
-                insert = true
-                cpe_list.each do |element|
-                  if element.include? cpe
-                    insert = false
-                  end
+            if cpe.include? "cpe:/a:" #repeat service control
+              insert = true
+              cpe_list.each do |element|
+                if element.include? cpe
+                  insert = false
                 end
-                if insert
-                  cpe_list.append(cpe)
-                  if service["service"]["product"] != ""
-                    @response_hash["ports"][portid] = {}
-                    @response_hash["ports"][portid]["product"] = service["service"]["product"]
-                    @response_hash["ports"][portid]["version"] = service["service"]["version"]
-                    @response_hash["ports"][portid]["name"] = service["service"]["name"]
-                    @response_hash["ports"][portid]["protocol"] = service["protocol"]
-                    @response_hash["ports"][portid]["port_state"] = service["state"]["state"]
-                    #assign ports and cpe in hash
-                    cpe_ports[cpe] = portid
-                  end
+              end
+              if insert
+                cpe_list.append(cpe)
+                if service["service"]["product"] != ""
+                  @response_hash["ports"][portid] = {}
+                  @response_hash["ports"][portid]["product"] = service["service"]["product"]
+                  @response_hash["ports"][portid]["version"] = service["service"]["version"]
+                  @response_hash["ports"][portid]["name"] = service["service"]["name"]
+                  @response_hash["ports"][portid]["protocol"] = service["protocol"]
+                  @response_hash["ports"][portid]["port_state"] = service["state"]["state"]
+                  #assign ports and cpe in hash
+                  cpe_ports[cpe] = portid
                 end
               end
             end
@@ -265,102 +274,111 @@ module Redborder
       end
     end
 
-    # Main vulnerabilities function
-    # Parameters:
-    # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, )
-    def get_vulnerabilities(port, scan_id)
-      if (port == "all" or port=="")
-        port = `#{NMAP_PATH} -sV -oX -` #get default ports to sniff
-        port = Hash.from_xml(port)
-        port = port["nmaprun"]["scaninfo"]["services"]
-      end
-      port = port.split(',') unless port.class==Array
-      #Convert [3-5] to 3,4,5
+    #Converts [3-5] to 3,4,5
+    #ERROR arguments too long when ports are too many for nmap bash call
+    #TODO implement also dashes rather than increase array size unnecesary. I.E. [1,3-10] is better for nmap call than [1,3,4,5,..,10]
+    #ERROR arguments too long when ports are too many for nmap bash call
+    def flatten_port(port)
       port = port.map do |sub_port_list|
         if sub_port_list.include?('-')
           from_to = sub_port_list.split('-')
-          sub_array = Array(from_to.first..from_to.last)
+          Array(from_to.first..from_to.last)
         else
-          sub_port_list
+          sub_port_list #Bypass = do nothing
         end
       end
-      port.flatten!
-      if port.class == Array and port.size > BATCH_PORT_SIZE
-        get_vulnerabilities(port[0,BATCH_PORT_SIZE], scan_id)
-        get_vulnerabilities(port[BATCH_PORT_SIZE..-1], scan_id)
-        return
-      end
+      port.flatten
+    end
 
-      @response_hash = {}
-      @general_info = {}
+    def get_default_ports #(protocol=:tcp)
+      # protocol_arg = '-sT' if protocol == :tcp
+      # protocol_arg = '-sU' if protocol == :udp
+      # response = `#{NMAP_PATH} #{protocol_arg} -oX -` #get default ports to sniff
+      response = `#{NMAP_PATH} -sV -oX -` #get default ports to sniff
+      map = Hash.from_xml(response)
+      ports = map["nmaprun"]["scaninfo"]["services"]
+    end
 
-      #port = port.delete(' ')
-      if port.all? {|p| p.to_i < 0} 
-        response = `#{NMAP_PATH} -sV -n -oX - #{@address}`
-      else
-        port = port.join(",")
-        response = `#{NMAP_PATH} -p #{port} -sV -n -oX - #{@address}`
-      end
-      nmap_response = Hash.from_xml(response)
+    # Main vulnerabilities function
+    # Parameters:
+    # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, )
+    
+    def get_ports_batched(ports)
+      ports = ports.split(',')
+      ports = flatten_port(ports)
+      set_batch_step(ports.size)
+      port_batches = ports.each_slice(@batch_step)
+    end
 
-      # Check if server is alive:
-      server_up = nmap_response["nmaprun"]["runstats"]["hosts"]["up"]
-      puts "IP: "+@address+"\n" if @debug
-      if server_up == '1'
+    def get_vulnerabilities(ports, scan_id)
+      ports = get_default_ports if (ports == "all" or ports=="")
+      port_batches = get_ports_batched(ports)
+      for ports in port_batches
+      	p "ANALIZING PORTS: " + ports.to_s if @debug
+        @response_hash = {}
+        @general_info = {}
+        ports = ports.join(",") if ports.class == Array
+        response = `#{NMAP_PATH} -p #{ports} -sV -n -oX - #{@address}`
+        nmap_response = Hash.from_xml(response)
 
-        cpe_list=[]
-        @response_hash["ports"] = {}
+        # Check if server is alive:
+        server_up = nmap_response["nmaprun"]["runstats"]["hosts"]["up"]
+        puts "IP: "+@address+"\n" if @debug
+        if server_up == '1'
 
-        if nmap_response["nmaprun"]["host"]["address"].class != Array
-          @general_info["ipv4"] = nmap_response["nmaprun"]["host"]["address"]["addr"]
-        else
-          nmap_response["nmaprun"]["host"]["address"].each do |address|
-            @general_info["ipv4"] = address["addr"] if address["addrtype"] == "ipv4"
-            @general_info["mac"] = address["addr"] if address["addrtype"] == "mac"
-          end
-        end
+          cpe_list=[]
+          @response_hash["ports"] = {}
 
-        @general_info["timestamp"] = nmap_response["nmaprun"]["start"].to_i
-
-        cpe_info = get_cpe_list(nmap_response)
-
-        if !cpe_info.empty?
-          cpe_list = cpe_info["cpe_list"]
-          cpe_ports = cpe_info["cpe_ports"]
-          cpe_text = cpe_info["cpe_text"]
-
-          cpe_list.each do |cpe|
-
-            puts "\n" + "------------------------------\n" + "\nVulnerabilities:  " + cpe + "\n" if @debug
-
-            if cpe_text[cpe] != nil
-              puts cpe_text[cpe] if @debug
+          if nmap_response["nmaprun"]["host"]["address"].class != Array
+            @general_info["ipv4"] = nmap_response["nmaprun"]["host"]["address"]["addr"]
+          else
+            nmap_response["nmaprun"]["host"]["address"].each do |address|
+              @general_info["ipv4"] = address["addr"] if address["addrtype"] == "ipv4"
+              @general_info["mac"] = address["addr"] if address["addrtype"] == "mac"
             end
-
-            cpe_string = cpe.gsub("cpe:/a", "cpe:2.3:a")
-
-            if cpe.include? "%2B" ## cleaning trash in nmap code
-              cpe_aux = cpe_string.split("%2B")
-              cpe_string = cpe_aux[0]
-              cpe_string = cpe_string + "*"
-            end
-
-            @general_info["product"] = @response_hash["ports"][cpe_ports[cpe]]["product"] if @response_hash["ports"][cpe_ports[cpe]]["product"] != nil
-            @general_info["version"] = @response_hash["ports"][cpe_ports[cpe]]["version"] if @response_hash["ports"][cpe_ports[cpe]]["version"] != nil
-            @general_info["servicename"] = @response_hash["ports"][cpe_ports[cpe]]["name"] if @response_hash["ports"][cpe_ports[cpe]]["name"] != nil
-            @general_info["protocol"] = @response_hash["ports"][cpe_ports[cpe]]["protocol"] if @response_hash["ports"][cpe_ports[cpe]]["protocol"] != nil
-            @general_info["port_state"] = @response_hash["ports"][cpe_ports[cpe]]["port_state"] if @response_hash["ports"][cpe_ports[cpe]]["port_state"] != nil
-            @general_info["port"] = cpe_ports[cpe]
-
-            produce_to_kafka(cpe_string, scan_id, "rb_scanner")
-            puts "Kafka message sent: " + cpe_string.to_s if @debug
           end
-          @producer.close()
+
+          @general_info["timestamp"] = nmap_response["nmaprun"]["start"].to_i
+          cpe_info = get_cpe_list(nmap_response)
+
+          if !cpe_info.empty?
+            cpe_list = cpe_info["cpe_list"]
+            cpe_ports = cpe_info["cpe_ports"]
+            cpe_text = cpe_info["cpe_text"]
+
+            cpe_list.each do |cpe|
+
+              puts "\n" + "------------------------------\n" + "\nVulnerabilities:  " + cpe + "\n" if @debug
+
+              if cpe_text[cpe] != nil
+                puts cpe_text[cpe] if @debug
+              end
+
+              cpe_string = cpe.gsub("cpe:/a", "cpe:2.3:a")
+
+              if cpe.include? "%2B" ## cleaning trash in nmap code
+                cpe_aux = cpe_string.split("%2B")
+                cpe_string = cpe_aux[0]
+                cpe_string = cpe_string + "*"
+              end
+
+              @general_info["product"] = @response_hash["ports"][cpe_ports[cpe]]["product"] if @response_hash["ports"][cpe_ports[cpe]]["product"] != nil
+              @general_info["version"] = @response_hash["ports"][cpe_ports[cpe]]["version"] if @response_hash["ports"][cpe_ports[cpe]]["version"] != nil
+              @general_info["servicename"] = @response_hash["ports"][cpe_ports[cpe]]["name"] if @response_hash["ports"][cpe_ports[cpe]]["name"] != nil
+              @general_info["protocol"] = @response_hash["ports"][cpe_ports[cpe]]["protocol"] if @response_hash["ports"][cpe_ports[cpe]]["protocol"] != nil
+              @general_info["port_state"] = @response_hash["ports"][cpe_ports[cpe]]["port_state"] if @response_hash["ports"][cpe_ports[cpe]]["port_state"] != nil
+              @general_info["port"] = cpe_ports[cpe]
+
+              produce_to_kafka(cpe_string, scan_id, "rb_scanner")
+              puts "Kafka message sent: " + cpe_string.to_s if @debug
+            end
+            @producer.close()
+          else
+            puts "All Ports closed in #{address} " if @debug
+          end
         else
-          puts "All Ports closed in #{address} " if @debug
+          puts "Server with IP #{address} down." if @debug
         end
-      else
-        puts "Server with IP #{address} down." if @debug
       end
     end
 
