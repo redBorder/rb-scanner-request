@@ -37,11 +37,10 @@ module Redborder
       @scan_id = ARGV[2] unless ARGV[2] == "debug"
       @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
       set_batch_rate(ARGV[4])
-      if (!ARGV[1].nil? and ARGV[1] == "debug") or (!ARGV[2].nil? and ARGV[2] == "debug") or (!ARGV[3].nil? and ARGV[3] == "debug") or (ARGV[4] == "debug")
-        @debug = true
-      end
-      refresh_kafka_producer
+      @kafka_address = ARGV[5] ? ARGV[5] : "127.0.0.1:9092"   #TODO: call kafka_managers to get this address. 127.0.0.1 could not have kafka if this machine is part of a cluster
+      @debug = ARGV.include?("debug")
 
+      refresh_kafka_producer
       unless @enrichment == nil
         check_enrichment
       end
@@ -88,7 +87,7 @@ module Redborder
     end
 
     def refresh_kafka_producer
-      @producer = Poseidon::Producer.new(["127.0.0.1:9092"], "vulnerabilities_cpe_producer")
+      @producer = Poseidon::Producer.new([@kafka_address], "vulnerabilities_cpe_producer")
     end
 
     def get_host(host)
@@ -310,7 +309,7 @@ module Redborder
       ports = get_default_ports if (ports == "all" or ports=="")
       port_batches = get_ports_batched(ports)
       for ports in port_batches
-	p "ANALIZING PORTS: " + ports.to_s if @debug
+      	p "ANALIZING PORTS: " + ports.to_s if @debug
         @response_hash = {}
         @general_info = {}
         ports = ports.join(",") if ports.class == Array
