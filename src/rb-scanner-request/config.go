@@ -19,6 +19,7 @@ type APIClientConfig struct {
 // structures used to read the scanner sensor config file created by chef
 type Sensors struct {
     Sensors []Sensor `json:"sensors"`
+    KafkaDomain string `json:"kafka"`
 }
 
 type Sensor struct {
