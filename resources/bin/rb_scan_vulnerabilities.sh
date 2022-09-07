@@ -6,7 +6,7 @@ TARGET=""
 PORTS="all"
 SCAN_ID=""
 BATCH_RATE="0.1"
-KAFKA="127.0.0.1:9092"
+KAFKA="rbmanager.redborder.cluster:9092"
 
 function usage() {
   echo "$0 [-t <target> -p <ports> -s <scan id> -e <enrichment> -b <batch rate> -k <kafka address>][-h]"

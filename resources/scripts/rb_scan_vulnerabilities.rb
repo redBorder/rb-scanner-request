@@ -37,7 +37,7 @@ module Redborder
       @scan_id = ARGV[2] unless ARGV[2] == "debug"
       @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
       set_batch_rate(ARGV[4])
-      @kafka_address = ARGV[5] ? ARGV[5] : "127.0.0.1:9092"   #TODO: call kafka_managers to get this address. 127.0.0.1 could not have kafka if this machine is part of a cluster
+      @kafka_address = ARGV[5] ? ARGV[5] : "rbmanager.redborder.cluster:9092"
       @debug = ARGV.include?("debug")
 
       refresh_kafka_producer
