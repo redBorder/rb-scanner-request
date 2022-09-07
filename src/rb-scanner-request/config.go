@@ -19,7 +19,6 @@ type APIClientConfig struct {
 // structures used to read the scanner sensor config file created by chef
 type Sensors struct {
     Sensors []Sensor `json:"sensors"`
-    KafkaDomain string `json:"kafka"`
 }
 
 type Sensor struct {
@@ -45,6 +44,10 @@ type DatabaseConfig struct {
 type ScannerConfig struct {
 	sqldb  *Database
 	Logger *logrus.Logger
+}
+
+type KafkaConfig struct {
+	Broker string `json:"kafka"`
 }
 
 // info of a local job, created from a scan retrieved from the manager and stored in the local db
