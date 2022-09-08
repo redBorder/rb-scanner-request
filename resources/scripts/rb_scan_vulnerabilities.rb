@@ -344,7 +344,7 @@ module Redborder
               produce_to_kafka(cpe_string, scan_id, "rb_scanner")
               puts "Kafka message sent: " + cpe_string.to_s if @debug
             end
-            @kafka_producer.close()
+            @kafka_producer.close() if @kafka_producer
           else
             puts "All Ports closed in #{address} " if @debug
           end
@@ -375,6 +375,7 @@ ports        = opt["p"] || "all"
 scan_id      = opt["s"]
 kafka_broker = opt["k"] || "127.0.0.1:9092"
 batch_rate   = opt["b"].to_f rescue 0.1
+debug        = opt["d"]
 enrichment   = JSON.parse(opt["e"]) rescue {}
 
 if batch_rate < 0.0 or batch_rate > 1.0
