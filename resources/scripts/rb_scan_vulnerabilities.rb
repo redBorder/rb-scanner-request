@@ -375,7 +375,7 @@ ports        = opt["p"] || "all"
 scan_id      = opt["s"]
 kafka_broker = opt["k"] || "127.0.0.1:9092"
 batch_rate   = opt["b"].to_f rescue 0.1
-enrichment   = JSON.parse(opt["e]") rescue {}
+enrichment   = JSON.parse(opt["e"]) rescue {}
 
 unless batch_rate.between(0.0, 0.1)
   puts "ERROR: batch rate value should be between 0.0 and 0.1"
