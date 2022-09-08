@@ -46,6 +46,7 @@ module Redborder
       @debug = debug       
     end
 
+    #Convert batch_rate to a natural number, in order to split ports
     def set_batch_step (number_of_ports=65535)
       @batch_step = number_of_ports * @batch_rate
       @batch_step = @batch_step < 1.0 ? 1 : @batch_step.round
@@ -96,16 +97,12 @@ module Redborder
       @kafka_producer = Poseidon::Producer.new([@kafka_broker], @kafka_id)
       general = @general_info
       cpe = {"cpe" => cpe_string, "scan_id" => scan_id, "scan_type" => "2"}
-
       # Enrichment if the parameter was received
-      if @enrichment != "{}" and !@enrichment.nil?
-        cpe = cpe.merge(@enrichment)
-      end
-
-      msg = cpe.merge(general).to_json
+      cpe = cpe.merge(@enrichment)
+      cpe = cpe.merge(general)
       begin
         messages = []
-        messages << Poseidon::MessageToSend.new(topic, msg)
+        messages << Poseidon::MessageToSend.new(topic, cpe.to_json)
         @kafka_producer.send_messages(messages)
       rescue
         p "Error producing messages to kafka #{topic}..."
@@ -271,10 +268,20 @@ module Redborder
       ports = map["nmaprun"]["scaninfo"]["services"]
     end
 
+    # [1,3-5] -> 4
+    def get_ports_number(ports)
+      size = ports.reduce { |sum, element| 
+                            if element.include? '-'
+                               from_to = element.split('-')
+                               from_to.last.to_i - from_to.first.to_i
+                            end
+                          }
+      size += ports.size 
+    end
+
     # Main vulnerabilities function
     # Parameters:
-    # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, )
-    
+    # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, ) 
     def get_ports_batched(ports)
       ports = ports.split(',')
       ports = flatten_port(ports)
@@ -370,16 +377,16 @@ end
 opt = Getopt::Std.getopts("tpsebkd")
 
 # Initialize variables
-target       = (opt["t"] || "localhost").split 
+target       = (opt["t"] || "localhost").split #Array
 ports        = opt["p"] || "all"
 scan_id      = opt["s"]
 kafka_broker = opt["k"] || "127.0.0.1:9092"
 batch_rate   = opt["b"].to_f rescue 0.1
-debug        = opt["d"]
+debug        = opt["d"] || false
 enrichment   = JSON.parse(opt["e"]) rescue {}
 
 if batch_rate < 0.0 or batch_rate > 1.0
-  puts "ERROR: batch rate value should be between 0.0 and 0.1"
+  puts "ERROR: batch rate value should be between 0.0 and 1.0"
   exit 1
 end
 
