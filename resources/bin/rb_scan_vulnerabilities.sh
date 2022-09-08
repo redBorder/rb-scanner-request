@@ -52,4 +52,4 @@ if [[ -f "/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb" ]]; then
   SCRIPT_RUBY_PATH="/usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb"
 fi
 
-ruby $SCRIPT_RUBY_PATH $TARGET $PORTS $SCAN_ID $ENRICH $BATCH_RATE $KAFKA
+ruby $SCRIPT_RUBY_PATH -t $TARGET -p $PORTS -s $SCAN_ID -e $ENRICH -b $BATCH_RATE -k $KAFKA

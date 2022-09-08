@@ -21,36 +21,29 @@ require "uri"
 require 'active_support/core_ext/hash'
 require 'json'
 require 'poseidon'
+require 'getopt/std'
 
 module Redborder
 
-  class VulnerabilitiesScan
+  class Scanner
     attr_accessor :address, :is_database
     attr_accessor :nmap_query, :response_hash, :general_info, :producer
     NMAP_PATH = "/usr/bin/nmap"
-    def initialize
-      @debug = false
-      @address_list = [ARGV[0]]
-      @address_list = 'localhost' if ARGV[0].nil?
-      @ports = ARGV[1] unless (ARGV[1] == "debug" or ARGV[1].nil?)
-      @ports = 'all' if (ARGV[1].nil? or ARGV[1] == "debug")
-      @scan_id = ARGV[2] unless ARGV[2] == "debug"
-      @enrichment = JSON.parse(ARGV[3]) unless ARGV[3] == "debug"
-      set_batch_rate(ARGV[4])
-      @kafka_address = ARGV[5] ? ARGV[5] : "127.0.0.1:9092"
-      @debug = ARGV.include?("debug")
 
-      refresh_kafka_producer
-      unless @enrichment == nil
-        check_enrichment
-      end
-      set_target
-    end
-
-    def set_batch_rate (argument)
-      @batch_rate = argument ? argument.to_f : 0.1 	#default value
-      @batch_rate = 0.0 if @batch_rate < 0.0  		#clamp rate
-      @batch_rate = 1.0 if @batch_rate > 1.0
+    def initialize(target, ports, scan_id, enrichment, batch_rate, kafka_broker, debug)
+      @target = target
+      @ports = ports
+      @scan_id = scan_id
+      @enrichment = enrichment.reject{ |kev,value| 
+                      %w[service_provider_uuid service_provider 
+                         namespace namespace_uuid 
+                         organization organization_uuid 
+                         building building_uuid].include? key and value.empty?
+                     }
+      @batch_rate = batch_rate
+      @kafka_id = "vulnerabilities_cpe_producer"
+      @kafka_broker = kafka_broker
+      @debug = debug       
     end
 
     def set_batch_step (number_of_ports=65535)
@@ -58,8 +51,8 @@ module Redborder
       @batch_step = @batch_step < 1.0 ? 1 : @batch_step.round
     end 
 
-    def set_target
-      @address_list.each do |address|
+    def start
+      @target.each do |address|
         @address = address
         if @address.include?("/")
           nmap_response = `#{NMAP_PATH} -sn -oX - #{@address}`
@@ -86,10 +79,6 @@ module Redborder
       end
     end
 
-    def refresh_kafka_producer
-      @producer = Poseidon::Producer.new([@kafka_address], "vulnerabilities_cpe_producer")
-    end
-
     def get_host(host)
       if host["address"].class != Array
         host["address"]["addr"]
@@ -102,21 +91,9 @@ module Redborder
       end
     end
 
-    # Deletes nil fields
-    def check_enrichment
-      input = @enrichment
-      field_list = %w[service_provider_uuid service_provider namespace namespace_uuid organization organization_uuid building building_uuid]
-
-      input.each do | key, value |
-        if field_list.include?(key) and ( value.empty? or value == "")
-          @enrichment.delete(key)
-        end
-      end
-    end
-
     # Method to produce to a kafka topic
     def produce_to_kafka(cpe_string, scan_id, topic)
-      refresh_kafka_producer
+      @kafka_producer = Poseidon::Producer.new([@kafka_broker], @kafka_id)
       general = @general_info
       cpe = {"cpe" => cpe_string, "scan_id" => scan_id, "scan_type" => "2"}
 
@@ -129,7 +106,7 @@ module Redborder
       begin
         messages = []
         messages << Poseidon::MessageToSend.new(topic, msg)
-        @producer.send_messages(messages)
+        @kafka_producer.send_messages(messages)
       rescue
         p "Error producing messages to kafka #{topic}..."
       end
@@ -389,4 +366,21 @@ module Redborder
   end
 end
 
-nmap = Redborder::VulnerabilitiesScan.new()
+# MAIN
+opt = Getopt::Std.getopts("tpsebkd")
+
+# Initialize variables
+target       = (opt["t"] || "localhost").split 
+ports        = opt["p"] || "all"
+scan_id      = opt["s"]
+kafka_broker = opt["k"] || "127.0.0.1:9092"
+batch_rate   = opt["b"].to_f rescue 0.1
+enrichment   = JSON.parse(opt["e]") rescue {}
+
+unless batch_rate.between(0.0, 0.1)
+  puts "ERROR: batch rate value should be between 0.0 and 0.1"
+  exit 1
+end
+
+scanner = Redborder::Scanner.new(target, ports, scan_id, enrichment, batch_rate, kafka_broker, debug)
+scanner.start
