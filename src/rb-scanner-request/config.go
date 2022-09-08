@@ -46,6 +46,10 @@ type ScannerConfig struct {
 	Logger *logrus.Logger
 }
 
+type KafkaConfig struct {
+	Broker string `json:"kafka"`
+}
+
 // info of a local job, created from a scan retrieved from the manager and stored in the local db
 type Job struct {
 	Id     int

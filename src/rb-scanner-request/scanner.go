@@ -7,6 +7,8 @@ import (
   "encoding/json"
 )
 
+var kafkaConfig *KafkaConfig
+
 // Database handles the connection with a SQL Database
 type Scanner struct {
 	config ScannerConfig
@@ -45,8 +47,8 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
 	logger := db.config.Logger
     logger.Info("Enrichment: ", enrich)
 	logger.Info("start scan for id ", j.Id)
-
-	cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-e",enrich)
+	broker := kafkaConfig.Broker
+	cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-e",enrich, "-k", broker)
 	err = cmd.Start()
 	if err != nil {
 		return 0, err
