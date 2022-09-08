@@ -27,7 +27,7 @@ module Redborder
 
   class Scanner
     attr_accessor :address, :is_database
-    attr_accessor :nmap_query, :response_hash, :general_info, :producer
+    attr_accessor :nmap_query, :response_hash, :general_info, :kafka_producer
     NMAP_PATH = "/usr/bin/nmap"
 
     def initialize(target, ports, scan_id, enrichment, batch_rate, kafka_broker, debug)
@@ -344,7 +344,7 @@ module Redborder
               produce_to_kafka(cpe_string, scan_id, "rb_scanner")
               puts "Kafka message sent: " + cpe_string.to_s if @debug
             end
-            @producer.close()
+            @kafka_producer.close()
           else
             puts "All Ports closed in #{address} " if @debug
           end
