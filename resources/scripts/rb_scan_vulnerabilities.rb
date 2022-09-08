@@ -377,7 +377,7 @@ kafka_broker = opt["k"] || "127.0.0.1:9092"
 batch_rate   = opt["b"].to_f rescue 0.1
 enrichment   = JSON.parse(opt["e"]) rescue {}
 
-unless batch_rate.between(0.0, 0.1)
+if batch_rate < 0.0 or batch_rate > 1.0
   puts "ERROR: batch rate value should be between 0.0 and 0.1"
   exit 1
 end
