@@ -282,11 +282,42 @@ module Redborder
     # Main vulnerabilities function
     # Parameters:
     # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, ) 
+    # input "1,3-6,8" output [["1", "3-4"] , ["5-6","8"]]
     def get_ports_batched(ports)
-      ports = ports.split(',')
+      ports = ports.split(',')  #string with commas to array
       ports = flatten_port(ports)
+      port_batches = slice(ports)
+    end
+
+    def slice_ports(ports)
       set_batch_step(ports.size)
-      port_batches = ports.each_slice(@batch_step)
+      ports.each_slice(@batch_step)
+      batches = []
+      while ports.size > @batch_step
+        batch = ports.slice!(0..@batch_step-1)  #extract subarray
+        batch = compress_ranges(batch)
+        batches.append(batch)
+      end
+    end
+
+    def compress_ranges(ports)
+      ports.map!(&:to_i)
+      _a = 0          #first index
+      while _a < ports.size-1
+        _z = _a + 1   #last index in possible consecutive serie
+        while ports[_z] == ports[_z-1]-1  # = is consecutive integer?
+          _z += 1     #look the next one
+        end
+        has_consecutives = _z - _a > 1
+        if has_consecutives       # else not consecutive, don't change the array
+          range = ports[_a].to_s + '-' + ports[_z-1].to_s     #RANGE: "first - last"
+          ports[_a] = range       #update the first single with the range
+          puts ports
+          ports.slice!(_a+1.._z)  #remove the single ports
+          puts ports
+        end
+      end
+      ports.map(&:to_s)
     end
 
     def get_vulnerabilities(ports, scan_id)
