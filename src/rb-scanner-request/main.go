@@ -16,6 +16,7 @@ import (
 var version string = "1.0"
 var goVersion = runtime.Version()
 
+var kafkaConfig *KafkaConfig
 var sensors Sensors
 var db *Database
 var scanner *Scanner
@@ -177,6 +178,7 @@ func readConfigFile(config string) {
 	defer configFile.Close()
 
 	byteValue, _ := ioutil.ReadAll(configFile)
+	json.Unmarshal(byteValue, &kafkaConfig)
 	json.Unmarshal(byteValue, &sensors)
 
 	for i := 0; i < len(sensors.Sensors); i++ {

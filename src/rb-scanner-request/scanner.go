@@ -7,8 +7,6 @@ import (
   "encoding/json"
 )
 
-var kafkaConfig *KafkaConfig
-
 // Database handles the connection with a SQL Database
 type Scanner struct {
 	config ScannerConfig
