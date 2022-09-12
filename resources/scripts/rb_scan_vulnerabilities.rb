@@ -29,6 +29,7 @@ module Redborder
     attr_accessor :address, :is_database
     attr_accessor :nmap_query, :response_hash, :general_info, :kafka_producer
     NMAP_PATH = "/usr/bin/nmap"
+    # MAX_NMAP_ARGUMENTS = 129000
 
     def initialize(target, ports, scan_id, enrichment, batch_rate, kafka_broker, debug)
       @target = target
@@ -243,20 +244,14 @@ module Redborder
       end
     end
 
-    #Converts [3-5] to 3,4,5
-    #ERROR arguments too long when ports are too many for nmap bash call
-    #TODO implement also dashes rather than increase array size unnecesary. I.E. [1,3-10] is better for nmap call than [1,3,4,5,..,10]
-    #ERROR arguments too long when ports are too many for nmap bash call
-    def flatten_port(port)
-      port = port.map do |sub_port_list|
-        if sub_port_list.include?('-')
-          from_to = sub_port_list.split('-')
-          Array(from_to.first..from_to.last)
-        else
-          sub_port_list #Bypass = do nothing
-        end
+    #Converts ports sequence with singles and ranges to all singles
+    #ie: ["3-5","8","10"] => ["3","4","5","8","10"]
+    def expand_ranges(ports)
+      ports.map! do |port_range|    #each element is either single or range.  !: means that ports is going to change
+        range = port_range.split('-')
+        singles = port_range.size > 1 ? Array(range.first..range.last) : port_range      #If single do nothing
       end
-      port.flatten
+      ports.flatten
     end
 
     def get_default_ports #(protocol=:tcp)
@@ -268,74 +263,60 @@ module Redborder
       ports = map["nmaprun"]["scaninfo"]["services"]
     end
 
-    # [1,3-5] -> 4
-    def get_ports_number(ports)
-      size = ports.reduce { |sum, element| 
-                            if element.include? '-'
-                               from_to = element.split('-')
-                               from_to.last.to_i - from_to.first.to_i
-                            end
-                          }
-      size += ports.size 
+    # Groups the ports in batches, generating a 2 dimensional array for the ports
+    # ie: with @batch_rate = 0.25 => input "1,3-6,8,11-12" => output[["1", "3"] , ["4-5"], ["6","8"], ["11-12"]]
+    def get_ports_batched(ports)
+      #prepare ports
+      ports = ports.split(',')      #string with commas to array
+      ports = expand_ranges(ports)  #convert ranges to singles
+      ports.uniq!                   #remove duplicated
+      #batch
+      set_batch_step(ports.size)
+      ports.each_slice(@batch_step).to_a
+    end
+
+    # Compress expanded ports in order to give less arguments to nmap call
+    # ie: ["1", "2", "3", "6", "8", "9"] => ["1-3","6","8-9"]
+    def compress_ranges(ports)
+      ports.map!(&:to_i)    #elements to integer
+      compressed_ports = []
+      _a = 0                #first_index: analyze forward here
+      while (_a < ports.size)
+        _z = _a + 1         #last index: stops when non consecutive
+        while (ports[_z] == ports[_z-1]+1) and !ports[_z+1].nil?  # if consecutive and prevent out of bounds
+          _z += 1           #look the next one
+        end
+        has_consecutives = _z - _a > 1
+        range = has_consecutives ? ports[_a].to_s + '-' + ports[_z-1].to_s : ports[_a].to_s
+        compressed_ports.append(range)
+        _a = _z
+      end
+      compressed_ports
     end
 
     # Main vulnerabilities function
     # Parameters:
-    # => port: ports to scan (could be empty for all ports scan, could be "all", a number in a string, ) 
-    # input "1,3-6,8" output [["1", "3-4"] , ["5-6","8"]]
-    def get_ports_batched(ports)
-      ports = ports.split(',')  #string with commas to array
-      ports = flatten_port(ports)
-      port_batches = slice(ports)
-    end
-
-    def slice_ports(ports)
-      set_batch_step(ports.size)
-      ports.each_slice(@batch_step)
-      batches = []
-      while ports.size > @batch_step
-        batch = ports.slice!(0..@batch_step-1)  #extract subarray
-        batch = compress_ranges(batch)
-        batches.append(batch)
-      end
-    end
-
-    def compress_ranges(ports)
-      ports.map!(&:to_i)
-      _a = 0          #first index
-      while _a < ports.size-1
-        _z = _a + 1   #last index in possible consecutive serie
-        while ports[_z] == ports[_z-1]-1  # = is consecutive integer?
-          _z += 1     #look the next one
-        end
-        has_consecutives = _z - _a > 1
-        if has_consecutives       # else not consecutive, don't change the array
-          range = ports[_a].to_s + '-' + ports[_z-1].to_s     #RANGE: "first - last"
-          ports[_a] = range       #update the first single with the range
-          puts ports
-          ports.slice!(_a+1.._z)  #remove the single ports
-          puts ports
-        end
-      end
-      ports.map(&:to_s)
-    end
-
+    # --- port: ports to scan (could be empty or 'all' for top 1000 default value of nmap, or a sequence of numbers a string
+    # --- scan_id: id needed to identify which scan is running for producing to the web
     def get_vulnerabilities(ports, scan_id)
       ports = get_default_ports if (ports == "all" or ports=="")
       port_batches = get_ports_batched(ports)
       for ports in port_batches
+        # ports_stream = ports.join(",")
+        # ports = ports_stream.size > MAX_NMAP_ARGUMENTS ? compress_ranges(ports) : ports_stream   #Only when necessary, because we want that nmap takes longer
+        ports = compress_ranges(ports)
+        ports = ports.join(',')
       	p "ANALIZING PORTS: " + ports.to_s if @debug
-        @response_hash = {}
-        @general_info = {}
-        ports = ports.join(",") if ports.class == Array
         response = `#{NMAP_PATH} -p #{ports} -sV -n -oX - #{@address}`
         nmap_response = Hash.from_xml(response)
 
         # Check if server is alive:
         server_up = nmap_response["nmaprun"]["runstats"]["hosts"]["up"]
         puts "IP: "+@address+"\n" if @debug
-        if server_up == '1'
 
+        @response_hash = {}
+        @general_info = {}
+        if server_up == '1'
           cpe_list=[]
           @response_hash["ports"] = {}
 
@@ -382,6 +363,7 @@ module Redborder
               produce_to_kafka(cpe_string, scan_id, "rb_scanner")
               puts "Kafka message sent: " + cpe_string.to_s if @debug
             end
+            sleep (60-Time.now.sec) #produce once for each min
             @kafka_producer.close() if @kafka_producer
           else
             puts "All Ports closed in #{address} " if @debug
@@ -405,14 +387,13 @@ module Redborder
 end
 
 # MAIN
-opt = Getopt::Std.getopts("tpsebkd")
-
+opt = Getopt::Std.getopts("t:p:s:e:b:k:d")
 # Initialize variables
 target       = (opt["t"] || "localhost").split #Array
 ports        = opt["p"] || "all"
-scan_id      = opt["s"]
+scan_id      = opt["s"] || raise {"ERROR: please assing scan id"}
 kafka_broker = opt["k"] || "127.0.0.1:9092"
-batch_rate   = opt["b"].to_f rescue 0.1
+batch_rate   = opt["b"].nil? ? 0.1 : opt["b"].to_f
 debug        = opt["d"] || false
 enrichment   = JSON.parse(opt["e"]) rescue {}
 
