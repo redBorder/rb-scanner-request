@@ -29,18 +29,18 @@ module Redborder
     attr_accessor :address, :is_database
     attr_accessor :nmap_query, :response_hash, :general_info, :kafka_producer
     NMAP_PATH = "/usr/bin/nmap"
-    # MAX_NMAP_ARGUMENTS = 129000
+    MAX_NMAP_ARGUMENTS = 129000
 
     def initialize(target, ports, scan_id, enrichment, batch_rate, kafka_broker, debug)
       @target = target
       @ports = ports
       @scan_id = scan_id
-      @enrichment = enrichment.reject{ |kev,value| 
+      @enrichment = enrichment.reject{ |key,value| 
                       %w[service_provider_uuid service_provider 
                          namespace namespace_uuid 
                          organization organization_uuid 
                          building building_uuid].include? key and value.empty?
-                     }
+                     } #if any of this fields is empty, remove it
       @batch_rate = batch_rate
       @kafka_id = "vulnerabilities_cpe_producer"
       @kafka_broker = kafka_broker
@@ -96,15 +96,14 @@ module Redborder
     # Method to produce to a kafka topic
     def produce_to_kafka(cpe_string, scan_id, topic)
       @kafka_producer = Poseidon::Producer.new([@kafka_broker], @kafka_id)
-      general = @general_info
       cpe = {"cpe" => cpe_string, "scan_id" => scan_id, "scan_type" => "2"}
-      # Enrichment if the parameter was received
-      cpe = cpe.merge(@enrichment)
-      cpe = cpe.merge(general)
+      cpe.merge!(@enrichment)
+      cpe.merge!(@general_info)
       begin
         messages = []
         messages << Poseidon::MessageToSend.new(topic, cpe.to_json)
-        @kafka_producer.send_messages(messages)
+        p messages
+	@kafka_producer.send_messages(messages)
       rescue
         p "Error producing messages to kafka #{topic}..."
       end
@@ -118,12 +117,10 @@ module Redborder
       @parameters = ["-sV","-Pn","-v"]
 
       port=port.delete(' ')
-      if port == "" then port = "all" end
-
-
-      if port_eval(port) == true or port == "all"
-
-        if port.downcase == "all"
+      port = "all" if port == ""
+      is_port_all = (port.downcase == "all")
+      if port_eval(port) or port_all
+        if port_all
           if @parameters.include? param
             @nmap_query = "IP: "+ @address + "\n" + `sudo nmap #{param} #{@address}`
           else
@@ -145,15 +142,11 @@ module Redborder
     # Get CPE List from a NMAP response
     def get_cpe_list(response)
       cpe_list = []
-      cpe_hash_list = {}
-      cpe_ports = {}
-      cpe_text = {}
+      cpe_hash_list = cpe_ports = cpe_text = {}
 
       path = response["nmaprun"]["host"]["ports"]["port"]
-      if path != nil ##not closed ports.    Not really: port 36 is closed but appears here
-        unless path.class == Array
-          path = [path]
-        end
+      unless path.nil? # Not closed ports.    Not really: port 36 is closed but appears here
+        path = [path] unless path.class == Array
         path.each do |service|
 	        is_valid_service = service.class == Hash && service["service"] != nil && service["service"]["cpe"] != nil
           if is_valid_service
@@ -237,11 +230,7 @@ module Redborder
           end
         end
       }
-      if pass
-        true
-      else
-        false
-      end
+      pass
     end
 
     #Converts ports sequence with singles and ranges to all singles
@@ -269,7 +258,7 @@ module Redborder
       #prepare ports
       ports = ports.split(',')      #string with commas to array
       ports = expand_ranges(ports)  #convert ranges to singles
-      ports.uniq!                   #remove duplicated
+      ports.uniq!                   #remove duplicated (rescuing the user)
       #batch
       set_batch_step(ports.size)
       ports.each_slice(@batch_step).to_a
@@ -299,13 +288,10 @@ module Redborder
     # --- port: ports to scan (could be empty or 'all' for top 1000 default value of nmap, or a sequence of numbers a string
     # --- scan_id: id needed to identify which scan is running for producing to the web
     def get_vulnerabilities(ports, scan_id)
-      ports = get_default_ports if (ports == "all" or ports=="")
-      port_batches = get_ports_batched(ports)
-      for ports in port_batches
-        # ports_stream = ports.join(",")
-        # ports = ports_stream.size > MAX_NMAP_ARGUMENTS ? compress_ranges(ports) : ports_stream   #Only when necessary, because we want that nmap takes longer
-        ports = compress_ranges(ports)
-        ports = ports.join(',')
+      ports = get_default_ports if (ports == "all" or ports=="")	#TODO: Check if ports can really be empty string
+      for ports in get_ports_batched(ports)
+        ports_stream = ports.join(",")
+        ports = ports_stream.size > MAX_NMAP_ARGUMENTS ? compress_ranges(ports).join(","): ports_stream   #Only when necessary, because we want that nmap takes longer
       	p "ANALIZING PORTS: " + ports.to_s if @debug
         response = `#{NMAP_PATH} -p #{ports} -sV -n -oX - #{@address}`
         nmap_response = Hash.from_xml(response)
@@ -314,8 +300,7 @@ module Redborder
         server_up = nmap_response["nmaprun"]["runstats"]["hosts"]["up"]
         puts "IP: "+@address+"\n" if @debug
 
-        @response_hash = {}
-        @general_info = {}
+        @response_hash = @general_info = {}
         if server_up == '1'
           cpe_list=[]
           @response_hash["ports"] = {}
@@ -332,7 +317,7 @@ module Redborder
           @general_info["timestamp"] = nmap_response["nmaprun"]["start"].to_i
           cpe_info = get_cpe_list(nmap_response)
 
-          if !cpe_info.empty?
+          unless cpe_info.empty?
             cpe_list = cpe_info["cpe_list"]
             cpe_ports = cpe_info["cpe_ports"]
             cpe_text = cpe_info["cpe_text"]
@@ -340,10 +325,7 @@ module Redborder
             cpe_list.each do |cpe|
 
               puts "\n" + "------------------------------\n" + "\nVulnerabilities:  " + cpe + "\n" if @debug
-
-              if cpe_text[cpe] != nil
-                puts cpe_text[cpe] if @debug
-              end
+              puts cpe_text[cpe] if @debug and !cpe_text[cpe].nil?
 
               cpe_string = cpe.gsub("cpe:/a", "cpe:2.3:a")
 
@@ -363,7 +345,6 @@ module Redborder
               produce_to_kafka(cpe_string, scan_id, "rb_scanner")
               puts "Kafka message sent: " + cpe_string.to_s if @debug
             end
-            sleep (60-Time.now.sec) #produce once for each min
             @kafka_producer.close() if @kafka_producer
           else
             puts "All Ports closed in #{address} " if @debug
@@ -377,9 +358,7 @@ module Redborder
     def check_deprecated(cpe)
       deprecated_cpe = { "igor_sysoev:nginx" => "nginx:nginx"}
       deprecated_cpe.each_pair do |key, value|
-        if cpe.include?(key)
-          cpe.gsub!(key,value)
-        end
+        cpe.gsub!(key,value) if cpe.include?(key)
       end
       cpe
     end
@@ -397,7 +376,7 @@ batch_rate   = opt["b"].nil? ? 0.1 : opt["b"].to_f
 debug        = opt["d"] || false
 enrichment   = JSON.parse(opt["e"]) rescue {}
 
-if batch_rate < 0.0 or batch_rate > 1.0
+if batch_rate < 0.0 or 1.0 < batch_rate
   puts "ERROR: batch rate value should be between 0.0 and 1.0"
   exit 1
 end
