@@ -42,13 +42,16 @@ func Enrichment(j Job, sensors Sensors) (enrichSensor string) {
 
 func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
     enrich := Enrichment(j, sensors)
-	logger := db.config.Logger
+    broker := kafkaConfig.Broker
+    logger := db.config.Logger
     logger.Info("Enrichment: ", enrich)
-	logger.Info("start scan for id ", j.Id)
-	broker := kafkaConfig.Broker
-	cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-e",enrich, "-k", broker)
-	err = cmd.Start()
-	if err != nil {
+    logger.Info("start scan for id ", j.Id)
+    logger.Info("kafka ", broker)
+    logger.Info("ports ", j.Ports)
+    logger.Info("target ", j.Target)
+    cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+    err = cmd.Start()
+    if err != nil {
 		return 0, err
 	} else {
 		logger.Info("started new job with pid ", cmd.Process.Pid)
