@@ -115,21 +115,18 @@ func main(){
 		// check if they are finished if the job has a pid
         for _, j := range jobs {
 		 	if (j.Pid > 0) {
-				logger.Info("check if scan is still running with ", j.Pid)
+				logger.JobInfo("check if scan is still running with ", j.Pid)
 				jobExist, err := PidExists(int32(j.Pid))
 				if err != nil {
 		 			logger.Info(err)
 		 		}
 		 		if !jobExist {
-					logger.Info("job is finished with pid ", j.Pid)
-					if _, err := apiClient.jobFinished(j); err != nil {
-						logger.Error("could not send finished status to manager for job with id ", j.Id)
-					} else {
-						if err := db.setJobStatus(j.Id, "finished"); err != nil {
-							logger.Error("error setting finished status in database ", err)
-						}
-					}
-		 		}
+					setJobFinished(j)
+		 		} else if j.Status == "cancelling" {
+					logger.Info("cancelling job with pid ", j.Pid)
+					err := scanner.CancelScan(j.Pid)
+					setJobFinished(j)
+				}
 		 	} else if j.Status == "new" {
 		 	     pid, err := scanner.StartScan(j,sensors)
 				 if err != nil {
@@ -148,6 +145,16 @@ func main(){
 		time.Sleep(time.Duration(*sleepTime) * time.Second)
 	}
 	defer db.Close()
+}
+func setJobFinished(j Job) {
+	logger.Info("job is finished with pid ", j.Pid)
+	if _, err := apiClient.jobFinished(j); err != nil {
+		logger.Error("could not send finished status to manager for job with id ", j.Id)
+	} else {
+		if err := db.setJobStatus(j.Id, "finished"); err != nil {
+			logger.Error("error setting finished status in database ", err)
+		}
+	}
 }
 
 func initLogger() {

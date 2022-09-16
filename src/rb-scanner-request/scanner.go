@@ -59,3 +59,18 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
 		return cmd.Process.Pid, nil
 	}
 }
+
+func (scan *Scanner) CancelScan(job_pid int) {
+   logger.Warning("STOP SCAN NOT IMPLEMENTED")
+   Kill := "kill -9"
+   cmd := exec.Command(Kill, job_pid)
+   err = cmd.Start()
+   if err != nil {
+     return err
+   } else {
+     logger.Info("killing job with pid ", job_pid)
+     go cmd.Wait()
+   }
+   // TODO: Stop current nmap
+}
+

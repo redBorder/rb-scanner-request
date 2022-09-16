@@ -30,6 +30,8 @@ const (
 	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
 	sqlSelectNonFinishedJobs = "SELECT * FROM Scanjobs WHERE status != \"finished\""
 	sqlSelectScanJob         = "SELECT * FROM Scanjobs WHERE Id = $1"
+	// sqlSelectPidToCancel 	 = "SELECT Pid FROM Scanjobs WHERE status == \"cancel\""
+	// sqlUpdateSubPid			 = "UPDATE Scanjobs SET SubPid = ? WHERE Pid = ?"
 )
 
 // Database handles the connection with a SQL Database
@@ -82,7 +84,7 @@ func NewDatabase(config DatabaseConfig) *Database {
 // function to retrieve all non-finished jobs
 func (db *Database) LoadJobs() (jobs []Job, err error) {
 	logger := db.config.Logger
-	logger.Info ("Retrieving all non-finished jos..")
+	logger.Info ("Retrieving all non-finished jobs..")
 	// get all non finished (new, running) jobs from the db an process them to return
 	rows, err := db.config.sqldb.Query(sqlSelectNonFinishedJobs)
     if err != nil {
