@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"github.com/Sirupsen/logrus"
 	"github.com/x-cray/logrus-prefixed-formatter"
+	"strconv"
 )
 
 var version string = "1.0"
@@ -92,14 +93,16 @@ func main(){
 	logger.Info("start requesting jobs every ", *sleepTime, " seconds")
 
 	// endless for loop that checks for scans and process them as jobs
-	for{
+	for {
 		for i := 0; i < len(sensors.Sensors); i++ {
 			logger.Info("request scans for sensor with uuid ", sensors.Sensors[i].Uuid)
 			scans := scanRequestForSensor(apiClient, sensors.Sensors[i].Uuid)
-			
+
 			// loop over all the scans and insert in database if new scan
 			for _, s := range scans {
 				db.StoreJob(sensors.Sensors[i].Uuid, s)
+				logger.Info("scan id: ", strconv.Itoa(s.Scan_id))
+				logger.Info("status: ", s.Status)
 			}
 		}
 		logger.Info("finished processing scans from manager ", *URL)
@@ -115,7 +118,7 @@ func main(){
 		// check if they are finished if the job has a pid
         for _, j := range jobs {
 		 	if (j.Pid > 0) {
-				logger.JobInfo("check if scan is still running with ", j.Pid)
+				logger.Info("Check if scan is still running with Pid ", j.Pid)
 				jobExist, err := PidExists(int32(j.Pid))
 				if err != nil {
 		 			logger.Info(err)
@@ -124,8 +127,9 @@ func main(){
 					setJobFinished(j)
 		 		} else if j.Status == "cancelling" {
 					logger.Info("cancelling job with pid ", j.Pid)
-					err := scanner.CancelScan(j.Pid)
-					setJobFinished(j)
+					if err := scanner.CancelScan(j.Pid); err != nil {
+						setJobFinished(j)
+					}
 				}
 		 	} else if j.Status == "new" {
 		 	     pid, err := scanner.StartScan(j,sensors)

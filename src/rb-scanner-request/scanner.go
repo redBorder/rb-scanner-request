@@ -60,17 +60,15 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
 	}
 }
 
-func (scan *Scanner) CancelScan(job_pid int) {
-   logger.Warning("STOP SCAN NOT IMPLEMENTED")
+func (scan *Scanner) CancelScan(job_pid int)(err error) {
    Kill := "kill -9"
-   cmd := exec.Command(Kill, job_pid)
+   job_pid_s := strconv.Itoa(job_pid)
+   cmd := exec.Command(Kill, job_pid_s)
    err = cmd.Start()
-   if err != nil {
-     return err
-   } else {
-     logger.Info("killing job with pid ", job_pid)
+   if err == nil {
+     logger.Info("killing job with pid ", job_pid_s)
      go cmd.Wait()
    }
-   // TODO: Stop current nmap
+   return err
 }
 
