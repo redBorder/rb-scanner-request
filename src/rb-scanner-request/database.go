@@ -30,8 +30,7 @@ const (
 	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
 	sqlSelectNonFinishedJobs = "SELECT * FROM Scanjobs WHERE status != \"finished\""
 	sqlSelectScanJob         = "SELECT * FROM Scanjobs WHERE Id = $1"
-	// sqlSelectPidToCancel 	 = "SELECT Pid FROM Scanjobs WHERE status == \"cancel\""
-	// sqlUpdateSubPid			 = "UPDATE Scanjobs SET SubPid = ? WHERE Pid = ?"
+	sqlUpdateToCancelling    = "UPDATE Scanjobs SET Status = \"cancelling\" WHERE Jobid = ?" 
 )
 
 // Database handles the connection with a SQL Database
@@ -84,7 +83,7 @@ func NewDatabase(config DatabaseConfig) *Database {
 // function to retrieve all non-finished jobs
 func (db *Database) LoadJobs() (jobs []Job, err error) {
 	logger := db.config.Logger
-	logger.Info ("Retrieving all non-finished jobs..")
+	logger.Info ("Retrieving all non-finished jos..")
 	// get all non finished (new, running) jobs from the db an process them to return
 	rows, err := db.config.sqldb.Query(sqlSelectNonFinishedJobs)
     if err != nil {
@@ -109,14 +108,22 @@ func (db *Database) LoadJobs() (jobs []Job, err error) {
 }
 
 func (db *Database) StoreJob(uuid string, s Scan) (err error) {
-	var newScan int
+	var alreadyStoredScan int	//0:false, rest:true
 	logger := db.config.Logger
 
 	logger.Info ("check if scan is already in database")
-	db.config.sqldb.QueryRow("SELECT COUNT(*) FROM Scanjobs WHERE JobId = ? AND Status != ?", s.Scan_id, "finished").Scan(&newScan)
-	if newScan > 0 {
-		logger.Info("scan already exists in database")
-		return nil
+	db.config.sqldb.QueryRow("SELECT COUNT(*) FROM Scanjobs WHERE JobId = ? AND Status != ?", s.Scan_id, "finished").Scan(&alreadyStoredScan)
+	
+	if alreadyStoredScan > 0 {
+		if s.Status == "cancelling" {
+			logger.Info("Scan has cancelling status. Updating to jobs database.")
+		        if _, err = db.config.sqldb.Exec(sqlUpdateToCancelling, s.Scan_id); err != nil {
+         			return err
+				}
+		} else {
+			logger.Info("scan already exists in database")
+			return nil
+		}
 	} else {
 		logger.Info("storing new scan with id ", s.Scan_id)
 		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid); err != nil {

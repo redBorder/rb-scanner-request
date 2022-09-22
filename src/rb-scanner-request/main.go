@@ -89,7 +89,6 @@ func init(){
 }
 
 func main(){
-
 	logger.Info("start requesting jobs every ", *sleepTime, " seconds")
 
 	// endless for loop that checks for scans and process them as jobs
@@ -123,14 +122,17 @@ func main(){
 				if err != nil {
 		 			logger.Info(err)
 		 		}
-		 		if !jobExist {
-					setJobFinished(j)
-		 		} else if j.Status == "cancelling" {
+		 		if j.Status == "cancelling" {
 					logger.Info("cancelling job with pid ", j.Pid)
 					if err := scanner.CancelScan(j.Pid); err != nil {
 						setJobFinished(j)
 					}
-				}
+				}					
+		 		if !jobExist {
+					logger.Info("Job doesn't exist anymore ", j.Pid)
+					logger.Info("status ", j.Status)
+					setJobFinished(j)
+		 		}
 		 	} else if j.Status == "new" {
 		 	     pid, err := scanner.StartScan(j,sensors)
 				 if err != nil {
@@ -210,19 +212,14 @@ func readDbFile(config string) {
 }
 
 func scanRequestForSensor(apiClient *APIClient, uuid string) []Scan {
-
   logger.Info("request jobs")
   response, err := apiClient.Jobs(uuid)
-  
   if err != nil {
 	logger.Error(err.Error())
-	return nil
-
   } else {
 	logger.Info("successfully retrieved jobs")
-	//logger.Info("response query is ", response.Query)
 	logger.Info("response query is ", response.Scans)
-	 return response.Scans 
+	return response.Scans
   }
   return nil
 }

@@ -61,14 +61,16 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
 }
 
 func (scan *Scanner) CancelScan(job_pid int)(err error) {
-   Kill := "kill -9"
    job_pid_s := strconv.Itoa(job_pid)
-   cmd := exec.Command(Kill, job_pid_s)
+   logger.Warning("DANGEROUSLY KILLING SCAN WITH PKILL")
+   Kill := "/usr/bin/pkill"
+   cmd := exec.Command(Kill, "-P", job_pid_s)
    err = cmd.Start()
    if err == nil {
      logger.Info("killing job with pid ", job_pid_s)
      go cmd.Wait()
+   } else {
+	   logger.Error("Error killing to cancel process: ", err)
    }
    return err
 }
-
