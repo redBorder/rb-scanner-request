@@ -7,8 +7,6 @@ import (
   "encoding/json"
 )
 
-var kafkaConfig *KafkaConfig
-
 // Database handles the connection with a SQL Database
 type Scanner struct {
 	config ScannerConfig
@@ -44,17 +42,35 @@ func Enrichment(j Job, sensors Sensors) (enrichSensor string) {
 
 func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
     enrich := Enrichment(j, sensors)
-	logger := db.config.Logger
+    broker := kafkaConfig.Broker
+    logger := db.config.Logger
     logger.Info("Enrichment: ", enrich)
-	logger.Info("start scan for id ", j.Id)
-	broker := kafkaConfig.Broker
-	cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-e",enrich, "-k", broker)
-	err = cmd.Start()
-	if err != nil {
+    logger.Info("start scan for id ", j.Id)
+    logger.Info("kafka ", broker)
+    logger.Info("ports ", j.Ports)
+    logger.Info("target ", j.Target)
+    cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+    err = cmd.Start()
+    if err != nil {
 		return 0, err
 	} else {
 		logger.Info("started new job with pid ", cmd.Process.Pid)
 		go cmd.Wait()
 		return cmd.Process.Pid, nil
 	}
+}
+
+func (scan *Scanner) CancelScan(job_pid int)(err error) {
+   job_pid_s := strconv.Itoa(job_pid)
+   logger.Warning("DANGEROUSLY KILLING SCAN WITH PKILL")
+   Kill := "/usr/bin/pkill"
+   cmd := exec.Command(Kill, "-P", job_pid_s)
+   err = cmd.Start()
+   if err == nil {
+     logger.Info("killing job with pid ", job_pid_s)
+     go cmd.Wait()
+   } else {
+	   logger.Error("Error killing to cancel process: ", err)
+   }
+   return err
 }

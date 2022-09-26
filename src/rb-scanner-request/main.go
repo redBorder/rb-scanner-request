@@ -11,11 +11,13 @@ import (
 	"syscall"
 	"github.com/Sirupsen/logrus"
 	"github.com/x-cray/logrus-prefixed-formatter"
+	"strconv"
 )
 
 var version string = "1.0"
 var goVersion = runtime.Version()
 
+var kafkaConfig *KafkaConfig
 var sensors Sensors
 var db *Database
 var scanner *Scanner
@@ -87,18 +89,19 @@ func init(){
 }
 
 func main(){
-
 	logger.Info("start requesting jobs every ", *sleepTime, " seconds")
 
 	// endless for loop that checks for scans and process them as jobs
-	for{
+	for {
 		for i := 0; i < len(sensors.Sensors); i++ {
 			logger.Info("request scans for sensor with uuid ", sensors.Sensors[i].Uuid)
 			scans := scanRequestForSensor(apiClient, sensors.Sensors[i].Uuid)
-			
+
 			// loop over all the scans and insert in database if new scan
 			for _, s := range scans {
 				db.StoreJob(sensors.Sensors[i].Uuid, s)
+				logger.Info("scan id: ", strconv.Itoa(s.Scan_id))
+				logger.Info("status: ", s.Status)
 			}
 		}
 		logger.Info("finished processing scans from manager ", *URL)
@@ -114,20 +117,21 @@ func main(){
 		// check if they are finished if the job has a pid
         for _, j := range jobs {
 		 	if (j.Pid > 0) {
-				logger.Info("check if scan is still running with ", j.Pid)
+				logger.Info("Check if scan is still running with Pid ", j.Pid)
 				jobExist, err := PidExists(int32(j.Pid))
 				if err != nil {
 		 			logger.Info(err)
 		 		}
-		 		if !jobExist {
-					logger.Info("job is finished with pid ", j.Pid)
-					if _, err := apiClient.jobFinished(j); err != nil {
-						logger.Error("could not send finished status to manager for job with id ", j.Id)
-					} else {
-						if err := db.setJobStatus(j.Id, "finished"); err != nil {
-							logger.Error("error setting finished status in database ", err)
-						}
+		 		if j.Status == "cancelling" {
+					logger.Info("cancelling job with pid ", j.Pid)
+					if err := scanner.CancelScan(j.Pid); err != nil {
+						setJobFinished(j)
 					}
+				}					
+		 		if !jobExist {
+					logger.Info("Job doesn't exist anymore ", j.Pid)
+					logger.Info("status ", j.Status)
+					setJobFinished(j)
 		 		}
 		 	} else if j.Status == "new" {
 		 	     pid, err := scanner.StartScan(j,sensors)
@@ -147,6 +151,16 @@ func main(){
 		time.Sleep(time.Duration(*sleepTime) * time.Second)
 	}
 	defer db.Close()
+}
+func setJobFinished(j Job) {
+	logger.Info("job is finished with pid ", j.Pid)
+	if _, err := apiClient.jobFinished(j); err != nil {
+		logger.Error("could not send finished status to manager for job with id ", j.Id)
+	} else {
+		if err := db.setJobStatus(j.Id, "finished"); err != nil {
+			logger.Error("error setting finished status in database ", err)
+		}
+	}
 }
 
 func initLogger() {
@@ -177,6 +191,7 @@ func readConfigFile(config string) {
 	defer configFile.Close()
 
 	byteValue, _ := ioutil.ReadAll(configFile)
+	json.Unmarshal(byteValue, &kafkaConfig)
 	json.Unmarshal(byteValue, &sensors)
 
 	for i := 0; i < len(sensors.Sensors); i++ {
@@ -197,19 +212,14 @@ func readDbFile(config string) {
 }
 
 func scanRequestForSensor(apiClient *APIClient, uuid string) []Scan {
-
   logger.Info("request jobs")
   response, err := apiClient.Jobs(uuid)
-  
   if err != nil {
 	logger.Error(err.Error())
-	return nil
-
   } else {
 	logger.Info("successfully retrieved jobs")
-	//logger.Info("response query is ", response.Query)
 	logger.Info("response query is ", response.Scans)
-	 return response.Scans 
+	return response.Scans
   }
   return nil
 }

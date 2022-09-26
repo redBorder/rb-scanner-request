@@ -22,7 +22,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-    "encoding/json"
+  "encoding/json"
 )
 
 // APIClient is an object that can communicate with the redborder API to get 
