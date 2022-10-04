@@ -134,19 +134,16 @@ func main(){
 					setJobFinished(j)
 		 		}
 		 	} else if j.Status == "new" {
-		 	     pid, err := scanner.StartScan(j,sensors)
-				 if err != nil {
+				logger.Info("New job detected")
+				pid, err := scanner.StartScan(j,sensors)
+				if err != nil {
 					logger.Error("job could not be started", err)
-				 } else {
-					if err := db.InsertJobPid(j.Id, pid); err != nil {
-						logger.Error("could not insert pid in database", err)
-					} else {
-						if err := db.setJobStatus(j.Id, "running"); err != nil {
-							logger.Error("could not update status of job in database")
-						}
-					}
-				 }
-			 }
+				} else if err := db.InsertJobPid(j.Id, pid); err != nil {
+					logger.Error("could not insert pid in database", err)
+				} else if err := db.setJobStatus(j.Id, "running"); err != nil {
+					logger.Error("could not update status of job in database")
+				}
+			}
 		}
 		time.Sleep(time.Duration(*sleepTime) * time.Second)
 	}
