@@ -28,9 +28,10 @@ const (
 	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid) values (?, ?, ?, ?, ?)"
 	sqlUpdatePid             = "UPDATE Scanjobs SET Pid = ? WHERE Id = ?"
 	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
+	// sqlSelectFinishedJob	 = "SELECT * FROM Scanjobs WHERE Jobid = ? Status == \"finished\""
 	sqlSelectNonFinishedJobs = "SELECT * FROM Scanjobs WHERE status != \"finished\""
 	sqlSelectScanJob         = "SELECT * FROM Scanjobs WHERE Id = $1"
-	sqlUpdateToCancelling    = "UPDATE Scanjobs SET Status = \"cancelling\" WHERE Jobid = ?" 
+	sqlUpdateToCancelling    = "UPDATE Scanjobs SET Status = \"cancelling\" WHERE Jobid = ?"
 )
 
 // Database handles the connection with a SQL Database
@@ -83,7 +84,7 @@ func NewDatabase(config DatabaseConfig) *Database {
 // function to retrieve all non-finished jobs
 func (db *Database) LoadJobs() (jobs []Job, err error) {
 	logger := db.config.Logger
-	logger.Info ("Retrieving all non-finished jos..")
+	logger.Info ("Retrieving all non-finished jobs..")
 	// get all non finished (new, running) jobs from the db an process them to return
 	rows, err := db.config.sqldb.Query(sqlSelectNonFinishedJobs)
     if err != nil {
@@ -108,28 +109,36 @@ func (db *Database) LoadJobs() (jobs []Job, err error) {
 }
 
 func (db *Database) StoreJob(uuid string, s Scan) (err error) {
-	var alreadyStoredScan int	//0:false, rest:true
 	logger := db.config.Logger
 
 	logger.Info ("check if scan is already in database")
-	db.config.sqldb.QueryRow("SELECT COUNT(*) FROM Scanjobs WHERE JobId = ? AND Status != ?", s.Scan_id, "finished").Scan(&alreadyStoredScan)
+
+	var scan_id int	//0:false, rest:true
+	//TODO: make this query row more explicit
+	db.config.sqldb.QueryRow("SELECT COUNT(*) FROM Scanjobs WHERE JobId = ? AND Status != ?", s.Scan_id, "finished").Scan(&scan_id)
 	
-	if alreadyStoredScan > 0 {
-		if s.Status == "cancelling" {
-			logger.Info("Scan has cancelling status. Updating to jobs database.")
-		        if _, err = db.config.sqldb.Exec(sqlUpdateToCancelling, s.Scan_id); err != nil {
-         			return err
-				}
-		} else {
-			logger.Info("scan already exists in database")
-			return nil
-		}
-	} else {
-		logger.Info("storing new scan with id ", s.Scan_id)
+	var isAlreadyStored = scan_id > 0
+	var isStatusCancelling = s.Status == "cancelling"
+	logger.Info ("is Status cancelling? ", s.Status == "cancelling", isStatusCancelling)
+
+	if !isAlreadyStored && !isStatusCancelling {
+		logger.Info("Storing new scan with id ", s.Scan_id, " and status: ", s.Status)
 		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid); err != nil {
 			return err
 		}
+	} else if !isAlreadyStored {	// and status = cancelling
+		logger.Info("Scan is going to be be stored with cancel in order to set it to finished later")
+		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid); err != nil {
+			return err
+		}
+	} else if isStatusCancelling {	// and already stored
+		logger.Info("Scan has cancelling status. Updating to jobs database.")
+		if _, err = db.config.sqldb.Exec(sqlUpdateToCancelling, s.Scan_id); err != nil {
+			return err
+		}
 	}
+	// } else {	//already stored but status is not cancelling
+	logger.Info("Scan already exists in database. No update to sql database.")
 	return nil
 }
 
