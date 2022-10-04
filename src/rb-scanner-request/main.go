@@ -143,6 +143,9 @@ func main(){
 				} else if err := db.setJobStatus(j.Id, "running"); err != nil {
 					logger.Error("could not update status of job in database")
 				}
+			} else if j.Status == "cancelling" {
+				logger.Info("New job is actually canceled -> lets finish its")
+				setJobFinished(j)
 			}
 		}
 		time.Sleep(time.Duration(*sleepTime) * time.Second)
