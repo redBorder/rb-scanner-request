@@ -120,9 +120,10 @@ func main(){
 					VulnerabilitiesScan = *vuls 
 
 					if s.ProfileType == 1 {
-						VulnerabilitiesScan = *hostdiscovery
-						logger.Info("VulnerabilitiesScan apunta a: ", *hostdiscovery)			
+						VulnerabilitiesScan = *hostdiscovery		
 					}
+
+					logger.Info("VulnerabilitiesScan apunta a: ", *VulnerabilitiesScan)	
 			}
 		}
 		logger.Info("finished processing scans from manager ", *URL)
