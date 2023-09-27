@@ -123,7 +123,7 @@ func main(){
 						VulnerabilitiesScan = *hostdiscovery		
 					}
 
-					logger.Info("VulnerabilitiesScan apunta a: ", *VulnerabilitiesScan)	
+					logger.Info("VulnerabilitiesScan apunta a: ", VulnerabilitiesScan)	
 			}
 		}
 		logger.Info("finished processing scans from manager ", *URL)
