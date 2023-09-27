@@ -35,11 +35,12 @@ var (
 	certFile      *string     // Path to store de certificate
 	dbFile        *string     // File to persist the state
 	vuls          *string     // Vulnerabilities scan script path
+	hostdiscovery *string     // Host discovery script path
 )
 
 
 var vulnerabilities_path = "/opt/rb/bin/rb_scan_vulnerabilities.sh"
-var networkmap_path = "/opt/rb/bin/rb_host_discovery.sh"
+var hostdiscovery_path = "/opt/rb/bin/rb_host_discovery.sh"
 
 
 func init(){
@@ -52,6 +53,7 @@ func init(){
 	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	versionFlag := flag.Bool("version", false, "Display version")
 	vuls = flag.String("vuls", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
+	hostdiscovery = flag.String("hostdiscovery", "/opt/rb/bin/rb_host_discovery.sh", "Host discovery script")
 
 	flag.Parse()
 
@@ -99,7 +101,7 @@ func main(){
 	// endless for loop that checks for scans and process them as jobs
 	for {
 		for i := 0; i < len(sensors.Sensors); i++ {
-			logger.Info("REQUEST CHANGES FOR JUAN EN ESTE ESCANNER", sensors.Sensors[i].Uuid)
+			logger.Info("request scans for sensor with uuid", sensors.Sensors[i].Uuid)
 			scans := scanRequestForSensor(apiClient, sensors.Sensors[i].Uuid)
 
 			// loop over all the scans and insert in database if new scan
@@ -113,14 +115,14 @@ func main(){
 					} else {
 						logger.Info("Scan details: ", string(scanAsJson))
 					}
-					if s.ProfileType == 0 {
-						*vuls = vulnerabilities_path
-						logger.Info("vuls apunta a: ", *vuls)
-					} else if s.ProfileType == 1 {
-						*vuls = networkmap_path
-						logger.Info("vuls apunta a: ", *vuls)
+					
+					// By default we use vulnerability (s.ProfileType == 0)
+					VulnerabilitiesScan = *vuls 
+
+					if s.ProfileType == 1 {
+						VulnerabilitiesScan = *hostdiscovery
+						logger.Info("VulnerabilitiesScan apunta a: ", *hostdiscovery)			
 					}
-					VulnerabilitiesScan = *vuls
 			}
 		}
 		logger.Info("finished processing scans from manager ", *URL)
