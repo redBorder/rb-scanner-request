@@ -37,6 +37,11 @@ var (
 	vuls          *string     // Vulnerabilities scan script path
 )
 
+
+var vulnerabilities_path = "/opt/rb/bin/rb_scan_vulnerabilities.sh"
+var networkmap_path = "/opt/rb/bin/rb_host_discovery.sh"
+
+
 func init(){
 	debug = flag.Bool("debug", false, "Show debug info")
 	URL = flag.String("url", "", "Protocol and hostname to connect")
@@ -71,7 +76,7 @@ func init(){
     logger.Info("vulnerabilities script path : ", *vuls)
     logger.Info("Scan jobs database: ", *dbFile)
 
-    VulnerabilitiesScan = *vuls
+
 
 	readConfigFile(*config)
 	readDbFile(*dbFile)
@@ -94,7 +99,7 @@ func main(){
 	// endless for loop that checks for scans and process them as jobs
 	for {
 		for i := 0; i < len(sensors.Sensors); i++ {
-			logger.Info("request scans for sensor with uuid ", sensors.Sensors[i].Uuid)
+			logger.Info("REQUEST CHANGES FOR JUAN EN ESTE ESCANNER", sensors.Sensors[i].Uuid)
 			scans := scanRequestForSensor(apiClient, sensors.Sensors[i].Uuid)
 
 			// loop over all the scans and insert in database if new scan
@@ -102,6 +107,20 @@ func main(){
 				db.StoreJob(sensors.Sensors[i].Uuid, s)
 				logger.Info("scan id: ", strconv.Itoa(s.Scan_id))
 				logger.Info("status: ", s.Status)
+				scanAsJson, err := json.Marshal(s)
+				if err != nil {
+					logger.Error("Error converting scan to JSON: ", err)
+					} else {
+						logger.Info("Scan details: ", string(scanAsJson))
+					}
+					if s.ProfileType == 0 {
+						*vuls = vulnerabilities_path
+						logger.Info("vuls apunta a: ", *vuls)
+					} else if s.ProfileType == 1 {
+						*vuls = networkmap_path
+						logger.Info("vuls apunta a: ", *vuls)
+					}
+					VulnerabilitiesScan = *vuls
 			}
 		}
 		logger.Info("finished processing scans from manager ", *URL)
@@ -152,6 +171,7 @@ func main(){
 	}
 	defer db.Close()
 }
+
 func setJobFinished(j Job) {
 	logger.Info("job is finished with pid ", j.Pid)
 	if _, err := apiClient.jobFinished(j); err != nil {

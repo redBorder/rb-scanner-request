@@ -73,6 +73,7 @@ type Scan struct {
 	Target_addr string `json:"target_addr"`
 	Target_port string `json:"target_port"`
 	Status      string `json:"status"`
+	ProfileType  int `json:"profile_type"`
 }
 
 // absolute paths of scripts used
