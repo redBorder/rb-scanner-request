@@ -35,8 +35,10 @@ Usage of **rb-scanner-resquest** and default values:
   	Time between requests in seconds (default 60)
 -url string
   	Protocol and hostname to connect (default "http://localhost")
--vuls string
+-vulnerabilities-script string
     Set the vulnerabilities scanner script path (default: "/opt/rb/bin/rb_scan_vulnerabilities.sh")
+-hostdiscovery-script string
+    Set the vulnerabilities scanner script path (default: "/opt/rb/bin/rb_host_discovery.sh")
 -config string
     Set the configuration file path (default: "./sensor.json")
 -db string
