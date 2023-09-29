@@ -56,7 +56,7 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
 
    // If not we configure the run to execute HostDiscoveryScript
     if j.JobType == 1 {
-      cmd := exec.Command(HostDiscoveryScript,"-t",j.Target,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+      cmd = exec.Command(HostDiscoveryScript,"-t",j.Target,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
     }
 
     err = cmd.Start()
