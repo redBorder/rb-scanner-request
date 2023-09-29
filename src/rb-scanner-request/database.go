@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	sqlCreateTable           = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255))"
-	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid) values (?, ?, ?, ?, ?)"
+	sqlCreateTable           = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255), JobType INTEGER DEFAULT 0)"
+	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid, JobType) values (?, ?, ?, ?, ?, ?)"
 	sqlUpdatePid             = "UPDATE Scanjobs SET Pid = ? WHERE Id = ?"
 	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
 	// sqlSelectFinishedJob	 = "SELECT * FROM Scanjobs WHERE Jobid = ? Status == \"finished\""
