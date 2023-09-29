@@ -51,7 +51,7 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
     logger.Info("target ", j.Target)
     logger.Info("job type ", j.JobType)
     if j.JobType == 0 {
-      cmd := exec.Command(VulnerabilitieScript,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+      cmd := exec.Command(VulnerabilitiesScript,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
     } else {
       cmd := exec.Command(HostDiscoveryScript,"-t",j.Target,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
     }

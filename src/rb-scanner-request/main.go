@@ -77,8 +77,8 @@ func init(){
 	readConfigFile(*config)
 	readDbFile(*dbFile)
 	
-	HostDiscoveryScript = vulnerabilities_script
-    VulnerabilitiesScript = hostdiscovery_script
+	HostDiscoveryScript = *vulnerabilities_script
+    VulnerabilitiesScript = *hostdiscovery_script
 
 	scanner = NewScanner(ScannerConfig{sqldb: db})
 
