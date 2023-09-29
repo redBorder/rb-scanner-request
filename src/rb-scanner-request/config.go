@@ -78,6 +78,6 @@ type Scan struct {
 }
 
 // absolute paths of scripts used
-var HostDiscoveryScan string = ""
-var VulnerabilitiesScan string = ""
+var HostDiscoveryScript string = ""
+var VulnerabilitiesScript string = ""
 var PortScan string = "/opt/rb/bin/rb_port_scan.sh"
