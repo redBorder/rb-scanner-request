@@ -51,17 +51,17 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
     logger.Info("target ", j.Target)
     logger.Info("job type ", j.JobType)
     
-    cmd := nil
+    var cmd *exec.Cmd
 
     // Execute Vulnerability Scan
     if j.JobType == 0 {
-      logger.Info("executing vulnerability scan")
+      logger.Info("executing vulnerability scan with ", VulnerabilitiesScript)
       cmd = exec.Command(VulnerabilitiesScript,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
     }
 
     // Execute HostDiscovery Scan
     if j.JobType == 1 {
-      logger.Info("executing hostdiscovery scan")
+      logger.Info("executing hostdiscovery scan with ", HostDiscoveryScript)
       cmd = exec.Command(HostDiscoveryScript,"-t",j.Target,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
     }
 
