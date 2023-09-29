@@ -49,7 +49,12 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
     logger.Info("kafka ", broker)
     logger.Info("ports ", j.Ports)
     logger.Info("target ", j.Target)
-    cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+    logger.Info("profile type ", j.Profile_type)
+    if j.Profile_type == 0 {
+      cmd := exec.Command(VulnerabilitieScript,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+    } else {
+      cmd := exec.Command(HostDiscoveryScript,"-t",j.Target,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+    }
     err = cmd.Start()
     if err != nil {
 		return 0, err

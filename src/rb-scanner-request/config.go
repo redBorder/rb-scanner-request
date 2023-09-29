@@ -59,6 +59,7 @@ type Job struct {
 	Status string
 	Pid    int
 	Uuid   string
+	JobType int
 }
 
 // structure to process the scans retrieved from the manager with an api call
@@ -73,10 +74,10 @@ type Scan struct {
 	Target_addr string `json:"target_addr"`
 	Target_port string `json:"target_port"`
 	Status      string `json:"status"`
-	ProfileType  int `json:"profile_type"`
+	Profile_type  int `json:"profile_type"`
 }
 
 // absolute paths of scripts used
-var HostDiscovery string = "/opt/rb/bin/rb_host_discovery.sh"
+var HostDiscoveryScan string = ""
 var VulnerabilitiesScan string = ""
 var PortScan string = "/opt/rb/bin/rb_port_scan.sh"

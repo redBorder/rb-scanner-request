@@ -96,7 +96,7 @@ func (db *Database) LoadJobs() (jobs []Job, err error) {
     // Loop through results of the query
     for rows.Next() {
         var j Job
-        if err := rows.Scan(&j.Id, &j.Jobid, &j.Target, &j.Ports, &j.Status, &j.Pid, &j.Uuid); err != nil {
+        if err := rows.Scan(&j.Id, &j.Jobid, &j.Target, &j.Ports, &j.Status, &j.Pid, &j.Uuid, &j.JobType); err != nil {
             return jobs, err
         }
         jobs = append(jobs, j)
@@ -123,12 +123,12 @@ func (db *Database) StoreJob(uuid string, s Scan) (err error) {
 
 	if !isAlreadyStored && !isStatusCancelling {
 		logger.Info("Storing new scan with id ", s.Scan_id, " and status: ", s.Status)
-		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid); err != nil {
+		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid, s.Profile_type); err != nil {
 			return err
 		}
 	} else if !isAlreadyStored {	// and status = cancelling
 		logger.Info("Scan is going to be be stored with cancel in order to set it to finished later")
-		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid); err != nil {
+		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid, s.Profile_type); err != nil {
 			return err
 		}
 	} else if isStatusCancelling {	// and already stored

@@ -27,21 +27,16 @@ var apiClient *APIClient
 var logger = logrus.New()
 
 var (
-	debug         *bool       // Debug flag
-	URL           *string     // API url
-	config        *string     // file with sensor information
-	sleepTime     *int        // Time between requests
-	insecure      *bool       // If true, skip SSL verification
-	certFile      *string     // Path to store de certificate
-	dbFile        *string     // File to persist the state
-	vuls          *string     // Vulnerabilities scan script path
-	hostdiscovery *string     // Host discovery script path
+	debug *bool // Debug flag
+	URL  *string // API url
+	config  *string // file with sensor information
+	sleepTime *int // Time between requests
+	insecure  *bool // If true, skip SSL verification
+	certFile *string // Path to store de certificate
+	dbFile *string // File to persist the state
+	vulnerabilities_script *string // Vulnerabilities scan script path
+	hostdiscovery_script *string // Host discovery script path
 )
-
-
-var vulnerabilities_path = "/opt/rb/bin/rb_scan_vulnerabilities.sh"
-var hostdiscovery_path = "/opt/rb/bin/rb_host_discovery.sh"
-
 
 func init(){
 	debug = flag.Bool("debug", false, "Show debug info")
@@ -52,8 +47,8 @@ func init(){
 	insecure = flag.Bool("no-check-certificate", true, "Dont check if the certificate is valid")
 	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	versionFlag := flag.Bool("version", false, "Display version")
-	vuls = flag.String("vuls", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
-	hostdiscovery = flag.String("hostdiscovery", "/opt/rb/bin/rb_host_discovery.sh", "Host discovery script")
+	vulnerabilities_script = flag.String("vulnerabilities_script", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
+	hostdiscovery_script = flag.String("hostdiscovery_script", "/opt/rb/bin/rb_host_discovery.sh", "Host discovery script")
 
 	flag.Parse()
 
@@ -75,13 +70,15 @@ func init(){
 	logger.Info("URL : ", *URL)
 	logger.Info("sleeptime : ", *sleepTime)
 	logger.Info("config file : ", *config)
-    logger.Info("vulnerabilities script path : ", *vuls)
+    logger.Info("vulnerabilities script path : ", *vulnerabilities_script)
+	logger.Info("hostdiscovery script path : ", *hostdiscovery_script)
     logger.Info("Scan jobs database: ", *dbFile)
-
-
 
 	readConfigFile(*config)
 	readDbFile(*dbFile)
+	
+	HostDiscoveryScript = vulnerabilities_script
+    VulnerabilitiesScript = hostdiscovery_script
 
 	scanner = NewScanner(ScannerConfig{sqldb: db})
 
@@ -115,15 +112,6 @@ func main(){
 					} else {
 						logger.Info("Scan details: ", string(scanAsJson))
 					}
-					
-					// By default we use vulnerability (s.ProfileType == 0)
-					VulnerabilitiesScan = *vuls 
-
-					if s.ProfileType == 1 {
-						VulnerabilitiesScan = *hostdiscovery		
-					}
-
-					logger.Info("VulnerabilitiesScan apunta a: ", VulnerabilitiesScan)	
 			}
 		}
 		logger.Info("finished processing scans from manager ", *URL)
