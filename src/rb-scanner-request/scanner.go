@@ -2,7 +2,7 @@ package main
 
 import (
   "os/exec"
-  "github.com/Sirupsen/logrus"
+  "github.com/sirupsen/logrus"
   "strconv"
   "encoding/json"
 )

@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"net/http"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // APIClientConfig stores the client api configuration
