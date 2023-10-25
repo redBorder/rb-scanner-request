@@ -98,7 +98,7 @@ func main(){
 	// endless for loop that checks for scans and process them as jobs
 	for {
 		for i := 0; i < len(sensors.Sensors); i++ {
-			logger.Info("request scans for sensor with uuid", sensors.Sensors[i].Uuid)
+			logger.Info("Request scans for sensor with uuid: ", sensors.Sensors[i].Uuid)
 			scans := scanRequestForSensor(apiClient, sensors.Sensors[i].Uuid)
 
 			// loop over all the scans and insert in database if new scan
