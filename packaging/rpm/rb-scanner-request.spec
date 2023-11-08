@@ -6,9 +6,7 @@ License: AGPL 3.0
 URL: https://github.com/redBorder/rb-scanner-request
 Source0: %{name}-%{version}.tar.gz
 
-BuildRequires: go = 1.6.3
-BuildRequires: glide rsync gcc git
-BuildRequires:	rsync mlocate
+BuildRequires: go rsync gcc
 
 Summary: rpm used to install rb-scanner-request in a redborder ng
 Group:   Development/Libraries/Go
@@ -71,5 +69,7 @@ systemctl daemon-reload
 %doc
 
 %changelog
+* Wed Oct 04 2023 David Vanhoucke <dvanhoucke@redborder.com> - 1.0.0-1
+- adapt for go mod
 * Fri Nov 26 2021 Javier Rodriguez Gomez <javiercrg@redborder.com> - 0.0.1
 - First spec version

@@ -19,7 +19,7 @@ package main
 import (
 	"database/sql"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	_ "github.com/mattn/go-sqlite3"
 )
 
