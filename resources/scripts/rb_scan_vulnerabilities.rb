@@ -18,6 +18,7 @@
 require 'net/http'
 require 'net/https'
 require "uri"
+require "active_support"
 require 'active_support/core_ext/hash'
 require 'json'
 require 'poseidon'
@@ -35,23 +36,23 @@ module Redborder
       @target = target
       @ports = ports
       @scan_id = scan_id
-      @enrichment = enrichment.reject{ |key,value| 
-                      %w[service_provider_uuid service_provider 
-                         namespace namespace_uuid 
-                         organization organization_uuid 
+      @enrichment = enrichment.reject{ |key,value|
+                      %w[service_provider_uuid service_provider
+                         namespace namespace_uuid
+                         organization organization_uuid
                          building building_uuid].include? key and value.empty?
                      } #if any of this fields is empty, remove it
       @batch_rate = batch_rate
       @kafka_id = "vulnerabilities_cpe_producer"
       @kafka_broker = kafka_broker
-      @debug = debug       
+      @debug = debug
     end
 
     #Convert batch_rate to a natural number, in order to split ports
     def set_batch_step (number_of_ports=65535)
       @batch_step = number_of_ports * @batch_rate
       @batch_step = @batch_step < 1.0 ? 1 : @batch_step.round
-    end 
+    end
 
     def start
       @target.each do |address|
@@ -237,7 +238,7 @@ module Redborder
     def get_default_ports #(protocol=:tcp)
       # protocol_arg = '-sT' if protocol == :tcp
       # protocol_arg = '-sU' if protocol == :udp
-      # response = `#{NMAP_PATH} #{protocol_arg} -oX -` #get default ports to sniff 
+      # response = `#{NMAP_PATH} #{protocol_arg} -oX -` #get default ports to sniff
       response = `#{NMAP_PATH} -sV -oX -` #get default ports to sniff
       map = Hash.from_xml(response)
       ports = map["nmaprun"]["scaninfo"]["services"]
@@ -323,7 +324,7 @@ module Redborder
                 cpe_string = cpe_aux[0]
                 cpe_string = cpe_string + "*"
               end
-	      
+
 	            ["product","version","servicename","protocol","port_state"].each{
                 |field| @general_info[field] = @response_hash["ports"][cpe_ports[cpe]][field]
                 } unless @response_hash["ports"][cpe_ports[cpe]].nil?

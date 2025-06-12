@@ -11,6 +11,8 @@ BuildRequires: go rsync gcc
 Summary: rpm used to install rb-scanner-request in a redborder ng
 Group:   Development/Libraries/Go
 
+%global debug_package %{nil}
+
 %description
 %{summary}
 
