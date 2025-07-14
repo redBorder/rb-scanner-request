@@ -6,7 +6,7 @@ TARGET=""
 PORTS="all"
 SCAN_ID=""
 BATCH_RATE="0.1"
-KAFKA="127.0.0.1:9092"
+KAFKA="kafka.service:9092"
 ENRICH="{}"
 
 function usage() {
@@ -27,6 +27,11 @@ while getopts "t:p:s:e:br:k:hd" name; do
     d) DEBUG="-d" ;;
   esac
 done
+
+# fallback if -k "" was passed
+if [ -z "$KAFKA" ]; then
+  KAFKA="kafka.service:9092"
+fi
 
 if [ "x$TARGET" == "x" ]; then
     usage
