@@ -67,6 +67,12 @@ systemctl daemon-reload
 /usr/lib/redborder/bin/rb_scan_vulnerabilities.sh
 %defattr(755,root,root)
 /usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb
+%defattr(755,root,root)
+/usr/lib/redborder/bin/rb_host_discovery.sh
+%defattr(755,root,root)
+/usr/lib/redborder/scripts/rb_host_discovery.rb
+%defattr(755,root,root)
+/usr/lib/redborder/scripts/rb_net_discovery.rb
 
 %doc
 
