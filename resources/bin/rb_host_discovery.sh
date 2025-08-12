@@ -1,11 +1,4 @@
 #!/bin/bash
-LOGFILE="/var/log/rb_host_discovery.log"
-exec >> "$LOGFILE" 2>&1
-
-echo "[DEBUG] $(date '+%F %T') KAFKA=$KAFKA"
-echo "[DEBUG] $(date '+%F %T') ENRICH=$ENRICH"
-
-
 source /etc/profile.d/rvm.sh
 
 TARGET=""
