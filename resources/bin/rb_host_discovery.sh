@@ -7,9 +7,6 @@ SCAN_ID=""
 KAFKA="kafka.service:9092"
 ENRICH="{}"
 
-echo "[DEBUG] KAFKA=$KAFKA"
-echo "[DEBUG] ENRICH=$ENRICH"
-
 
 function usage() {
   echo "$0 [-t <target> -p <ports> -s <scan id> -e <enrichment> -k <kafka address>][-h(help) -d(debug)]"
