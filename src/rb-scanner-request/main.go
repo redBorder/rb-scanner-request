@@ -138,12 +138,7 @@ func main(){
 		 		}
 		 	} else if j.Status == "new" {
 				jobJson, err := json.MarshalIndent(j, "", "  ")
-				if err != nil {
-					logger.Error("Error converting job to JSON: ", err)
-				} else {
-					logger.Info("\n========= JOB STRUCT =========\n", string(jobJson), "\n==============================")
-				}
-
+				
 				var scriptPath string
 				logger.Info("Profile type: ", j.ProfileType)
 
