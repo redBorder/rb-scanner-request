@@ -40,7 +40,7 @@ func Enrichment(j Job, sensors Sensors) (enrichSensor string) {
    return "{}"
 }
 
-func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
+func (scan *Scanner) StartScan(j Job, sensors Sensors, scriptPath string) (pid int, err error) {
     enrich := Enrichment(j, sensors)
     broker := kafkaConfig.Broker
     logger := db.config.Logger
@@ -49,7 +49,7 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors) (pid int, err error) {
     logger.Info("kafka ", broker)
     logger.Info("ports ", j.Ports)
     logger.Info("target ", j.Target)
-    cmd := exec.Command(VulnerabilitiesScan,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+    cmd := exec.Command(scriptPath,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
     err = cmd.Start()
     if err != nil {
 		return 0, err
