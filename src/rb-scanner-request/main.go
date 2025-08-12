@@ -138,9 +138,8 @@ func main(){
 		 		}
 		 	} else if j.Status == "new" {
 				jobJson, err := json.MarshalIndent(j, "", "  ")
-				
+
 				var scriptPath string
-				logger.Info("Profile type: ", j.ProfileType)
 
 				switch j.ProfileType {
 				case 0:
