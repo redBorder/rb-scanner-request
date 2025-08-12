@@ -171,22 +171,28 @@ module Redborder
       puts "    - #{host['ip']}#{host['hostname'] ? " (#{host['hostname']})" : ''}"
     end
 
+    # Runs an Nmap query on the given subnet
     def nmap_query(subnet, ports)
-      ports = ports.delete(' ')
-      ports = "all" if ports == ""
-      is_port_all = (ports.downcase == "all")
+      ports = ports.to_s.delete(' ')
+      ports = "all" if ports.empty?
+      is_port_all = ports.casecmp("all").zero?
 
-      command = "nmap -O -T4 #{subnet} -oX"
-      command += " -p #{ports}" unless is_port_all
+      # valida números, comas y guiones; si no, ignora -p
+      unless is_port_all || ports.match?(/\A[0-9,\-]+\z/)
+        warn "Invalid ports: #{ports}"
+        is_port_all = true
+      end
+
+      command = "nmap -O -T4"
+      command << " -p #{ports}" unless is_port_all
+      command << " #{subnet} -oX -"
 
       puts "Running command: #{command}"
       output = `#{command}`
-
       if $?.exitstatus != 0
         warn "Nmap command failed with exit status: #{$?.exitstatus}"
         return nil
       end
-
       output
     rescue => e
       warn "Error running nmap query: #{e.message}"
