@@ -137,7 +137,7 @@ func main(){
 					setJobFinished(j)
 		 		}
 		 	} else if j.Status == "new" {
-				jobJson, err := json.MarshalIndent(j, "", "  ")
+				_, err := json.MarshalIndent(j, "", "  ")
 
 				var scriptPath string
 
