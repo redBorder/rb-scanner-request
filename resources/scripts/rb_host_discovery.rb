@@ -204,7 +204,7 @@ end
 opt = Getopt::Std.getopts("t:p:s:e:b:k:d")
 
 unless opt["t"] && opt["s"]
-  puts "ERROR: Debes indicar un target (-t) y un scan_id (-s)"
+  puts 'ERROR: You must specify a target (-t) and a scan_id (-s)'
   exit 1
 end
 
