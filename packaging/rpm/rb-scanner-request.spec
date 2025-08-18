@@ -59,24 +59,21 @@ rm -rf %{buildroot}
 systemctl daemon-reload
 
 %files
-%defattr(0755,root,root)
-/usr/bin/rb-scanner-request
 %defattr(644,root,root)
 /usr/lib/systemd/system/redborder-scanner.service
-%defattr(755,root,root)
+%defattr(0755,root,root)
+/usr/bin/rb-scanner-request
 /usr/lib/redborder/bin/rb_scan_vulnerabilities.sh
-%defattr(755,root,root)
 /usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb
-%defattr(755,root,root)
 /usr/lib/redborder/bin/rb_host_discovery.sh
-%defattr(755,root,root)
 /usr/lib/redborder/scripts/rb_host_discovery.rb
-%defattr(755,root,root)
 /usr/lib/redborder/scripts/rb_net_discovery.rb
 
 %doc
 
 %changelog
+* Mon Aug 18 2025 Juan Soto <jsoto@redborder.com> -
+- add rb_host_discovery with run permissions
 * Wed Oct 04 2023 David Vanhoucke <dvanhoucke@redborder.com> - 1.0.0-1
 - adapt for go mod
 * Fri Nov 26 2021 Javier Rodriguez Gomez <javiercrg@redborder.com> - 0.0.1
