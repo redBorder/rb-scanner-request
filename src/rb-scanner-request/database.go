@@ -78,6 +78,13 @@ func NewDatabase(config DatabaseConfig) *Database {
 		return nil
 	}
 
+	// Migrate ScanJobs table to add missing columns if necessary
+	if err := migrateScanJobs(db.config.sqldb); err != nil {
+		logger.Error(err)
+		return nil
+	}
+
+
 	return db
 }
 
@@ -166,4 +173,30 @@ func (db *Database) setJobStatus(id int, status string) (err error) {
 // Close closes the connection with the database
 func (db *Database) Close() {
 	db.config.sqldb.Close()
+}
+
+// MigrateScanJobs migrates the ScanJobs table to add missing columns if necessary
+func migrateScanJobs(db *sql.DB) error {
+    rows, err := db.Query("SELECT name FROM pragma_table_info('Scanjobs')")
+    if err != nil {
+        return err
+    }
+    defer rows.Close()
+
+    columns := map[string]bool{}
+    for rows.Next() {
+        var name string
+        if err := rows.Scan(&name); err != nil {
+            return err
+        }
+        columns[name] = true
+    }
+
+    if !columns["ProfileType"] {
+        if _, err := db.Exec("ALTER TABLE Scanjobs ADD COLUMN ProfileType varchar(255) DEFAULT '0'"); err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
