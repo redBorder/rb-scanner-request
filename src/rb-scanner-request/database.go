@@ -25,7 +25,7 @@ import (
 
 const (
 	sqlCreateTable           = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255), ProfileType INTEGER DEFAULT 0)"
-	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid) values (?, ?, ?, ?, ?)"
+	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid, ProfileType) values (?, ?, ?, ?, ?, ?)"
 	sqlUpdatePid             = "UPDATE Scanjobs SET Pid = ? WHERE Id = ?"
 	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
 	// sqlSelectFinishedJob	 = "SELECT * FROM Scanjobs WHERE Jobid = ? Status == \"finished\""
@@ -130,12 +130,12 @@ func (db *Database) StoreJob(uuid string, s Scan) (err error) {
 
 	if !isAlreadyStored && !isStatusCancelling {
 		logger.Info("Storing new scan with id ", s.Scan_id, " and status: ", s.Status)
-		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid); err != nil {
+		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid, s.ProfileType); err != nil {
 			return err
 		}
 	} else if !isAlreadyStored {	// and status = cancelling
 		logger.Info("Scan is going to be be stored with cancel in order to set it to finished later")
-		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid); err != nil {
+		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid, s.ProfileType); err != nil {
 			return err
 		}
 	} else if isStatusCancelling {	// and already stored
