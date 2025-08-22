@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"net/http"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,6 +25,7 @@ type Sensors struct {
 type Sensor struct {
     Name   string `json:"name"`
     Uuid   string `json:"uuid"`
+	ServiceProvider string `json:"service_provider"`
     ServiceProviderUuid string `json:"service_provider_uuid"`
     Namespace string `json:"namespace"`
     NamespaceUuid string `json:"namespace_uuid"`
@@ -31,6 +33,16 @@ type Sensor struct {
     OrganizationUuid string `json:"organization_uuid"`
     building string `json:"building"`
     buildingUuid string `json:building_uuid`
+	Campus string `json:"campus"`
+	CampusUuid string `json:"campus_uuid"`
+	Deployment string `json:"deployment"`
+	DeploymentUuid string `json:"deployment_uuid"`
+	Zone string `json:"zone"`
+	ZoneUuid string `json:"zone_uuid"`
+	Market string `json:"market"`
+	MarketUuid string `json:"market_uuid"`
+	Floor string `json:"floor"`
+	FloorUuid string `json:"floor_uuid"`
 }
 
 // DatabaseConfig stores the database configuration
@@ -59,6 +71,7 @@ type Job struct {
 	Status string
 	Pid    int
 	Uuid   string
+	ProfileType  int
 }
 
 // structure to process the scans retrieved from the manager with an api call
@@ -73,6 +86,7 @@ type Scan struct {
 	Target_addr string `json:"target_addr"`
 	Target_port string `json:"target_port"`
 	Status      string `json:"status"`
+	ProfileType int `json:"profile_type"`
 }
 
 // absolute paths of scripts used
