@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	sqlCreateTable           = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255))"
-	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid) values (?, ?, ?, ?, ?)"
+	sqlCreateTable           = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255), ProfileType INTEGER DEFAULT 0)"
+	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid, ProfileType) values (?, ?, ?, ?, ?, ?)"
 	sqlUpdatePid             = "UPDATE Scanjobs SET Pid = ? WHERE Id = ?"
 	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
 	// sqlSelectFinishedJob	 = "SELECT * FROM Scanjobs WHERE Jobid = ? Status == \"finished\""
@@ -78,6 +78,13 @@ func NewDatabase(config DatabaseConfig) *Database {
 		return nil
 	}
 
+	// Migrate ScanJobs table to add missing columns if necessary
+	if err := migrateScanJobs(db.config.sqldb); err != nil {
+		logger.Error(err)
+		return nil
+	}
+
+
 	return db
 }
 
@@ -96,7 +103,7 @@ func (db *Database) LoadJobs() (jobs []Job, err error) {
     // Loop through results of the query
     for rows.Next() {
         var j Job
-        if err := rows.Scan(&j.Id, &j.Jobid, &j.Target, &j.Ports, &j.Status, &j.Pid, &j.Uuid); err != nil {
+        if err := rows.Scan(&j.Id, &j.Jobid, &j.Target, &j.Ports, &j.Status, &j.Pid, &j.Uuid, &j.ProfileType); err != nil {
             return jobs, err
         }
         jobs = append(jobs, j)
@@ -123,12 +130,12 @@ func (db *Database) StoreJob(uuid string, s Scan) (err error) {
 
 	if !isAlreadyStored && !isStatusCancelling {
 		logger.Info("Storing new scan with id ", s.Scan_id, " and status: ", s.Status)
-		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid); err != nil {
+		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid, s.ProfileType); err != nil {
 			return err
 		}
 	} else if !isAlreadyStored {	// and status = cancelling
 		logger.Info("Scan is going to be be stored with cancel in order to set it to finished later")
-		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid); err != nil {
+		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid, s.ProfileType); err != nil {
 			return err
 		}
 	} else if isStatusCancelling {	// and already stored
@@ -166,4 +173,30 @@ func (db *Database) setJobStatus(id int, status string) (err error) {
 // Close closes the connection with the database
 func (db *Database) Close() {
 	db.config.sqldb.Close()
+}
+
+// MigrateScanJobs migrates the ScanJobs table to add missing columns if necessary
+func migrateScanJobs(db *sql.DB) error {
+    rows, err := db.Query("SELECT name FROM pragma_table_info('Scanjobs')")
+    if err != nil {
+        return err
+    }
+    defer rows.Close()
+
+    columns := map[string]bool{}
+    for rows.Next() {
+        var name string
+        if err := rows.Scan(&name); err != nil {
+            return err
+        }
+        columns[name] = true
+    }
+
+    if !columns["ProfileType"] {
+        if _, err := db.Exec("ALTER TABLE Scanjobs ADD COLUMN ProfileType varchar(255) DEFAULT '0'"); err != nil {
+            return err
+        }
+    }
+
+    return nil
 }

@@ -37,6 +37,9 @@ var (
 	vuls          *string     // Vulnerabilities scan script path
 )
 
+var vulnerabilities_path = "/usr/lib/redborder/bin/rb_scan_vulnerabilities.sh"
+var networkmap_path = "/usr/lib/redborder/bin/rb_host_discovery.sh"
+
 func init(){
 	debug = flag.Bool("debug", false, "Show debug info")
 	URL = flag.String("url", "", "Protocol and hostname to connect")
@@ -46,7 +49,7 @@ func init(){
 	insecure = flag.Bool("no-check-certificate", true, "Dont check if the certificate is valid")
 	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	versionFlag := flag.Bool("version", false, "Display version")
-	vuls = flag.String("vuls", "/opt/rb/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
+	vuls = flag.String("vuls", "/usr/lib/redborder/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
 
 	flag.Parse()
 
@@ -134,8 +137,21 @@ func main(){
 					setJobFinished(j)
 		 		}
 		 	} else if j.Status == "new" {
-				logger.Info("New job detected")
-				pid, err := scanner.StartScan(j,sensors)
+				_, err := json.MarshalIndent(j, "", "  ")
+
+				var scriptPath string
+
+				switch j.ProfileType {
+				case 0:
+					scriptPath = vulnerabilities_path
+				case 1:
+					scriptPath = networkmap_path
+				default:
+					logger.Warnf("Unknown profile type %d, defaulting to vulnerabilities_path", j.ProfileType)
+					scriptPath = vulnerabilities_path
+				}
+
+				pid, err := scanner.StartScan(j, sensors, scriptPath)
 				if err != nil {
 					logger.Error("job could not be started", err)
 				} else if err := db.InsertJobPid(j.Id, pid); err != nil {
