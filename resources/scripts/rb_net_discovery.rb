@@ -83,27 +83,41 @@ class NetworkDiscovery
     rows = parse_netstat_table(response)
     rows.each do |row|
       dest = row["Destination"]
-      next if dest == "0.0.0.0" || dest == APIPA_NET
+      genmask = row["Genmask"]
+      next if dest.nil? || dest == "0.0.0.0" || dest == APIPA_NET
+      next if genmask.nil? || genmask.empty?
 
-      net = "#{dest}#{infer_netmask(dest)}"
+      net = begin
+        IPAddress("#{dest}/#{genmask}").to_string
+      rescue
+        next
+      end
+
       puts net
       @discovered_subnets << net
     end
   end
 
+  # Locates the header row by content (rather than assuming a fixed line
+  # number, which breaks if the table has extra/missing banner lines) and
+  # only accepts rows whose column count matches the header, so a
+  # misaligned line produces no entry instead of a garbage hash.
   def parse_netstat_table(response)
-    lines = response.lines
-    headers = lines[1].split.map(&:strip)
-    lines[2..].map { |line| Hash[headers.zip(line.split.map(&:strip))] }
+    lines = response.lines.map(&:rstrip)
+    header_index = lines.index { |l| l.include?("Destination") && l.include?("Genmask") }
+    return [] unless header_index
+
+    headers = lines[header_index].split
+    lines[(header_index + 1)..-1].each_with_object([]) do |line, rows|
+      next if line.strip.empty?
+
+      values = line.split
+      next unless values.size == headers.size
+
+      rows << Hash[headers.zip(values)]
+    end
   rescue
     []
-  end
-
-  def infer_netmask(ip)
-    octets = ip.split('.').map(&:to_i)
-    return "/16" if octets[2] == 0 && octets[3] == 0
-    return "/24" if octets[2] != 0 && octets[3] == 0
-    ""
   end
 
   def filter_and_add_target
