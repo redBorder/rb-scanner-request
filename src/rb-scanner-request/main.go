@@ -35,6 +35,7 @@ var (
 	certFile      *string     // Path to store de certificate
 	dbFile        *string     // File to persist the state
 	vuls          *string     // Vulnerabilities scan script path
+	netmap        *string     // Network map / host discovery scan script path
 )
 
 var vulnerabilities_path = "/usr/lib/redborder/bin/rb_scan_vulnerabilities.sh"
@@ -50,6 +51,7 @@ func init(){
 	certFile = flag.String("cert", "/opt/rb/etc/chef/client.pem", "Certificate file")
 	versionFlag := flag.Bool("version", false, "Display version")
 	vuls = flag.String("vuls", "/usr/lib/redborder/bin/rb_scan_vulnerabilities.sh", "Vulnerabilities scan script")
+	netmap = flag.String("netmap", "/usr/lib/redborder/bin/rb_host_discovery.sh", "Network map / host discovery scan script")
 
 	flag.Parse()
 
@@ -72,9 +74,11 @@ func init(){
 	logger.Info("sleeptime : ", *sleepTime)
 	logger.Info("config file : ", *config)
     logger.Info("vulnerabilities script path : ", *vuls)
+    logger.Info("network map script path : ", *netmap)
     logger.Info("Scan jobs database: ", *dbFile)
 
-    VulnerabilitiesScan = *vuls
+    vulnerabilities_path = *vuls
+    networkmap_path = *netmap
 
 	readConfigFile(*config)
 	readDbFile(*dbFile)

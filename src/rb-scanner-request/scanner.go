@@ -1,7 +1,10 @@
 package main
 
 import (
+  "bufio"
+  "io"
   "os/exec"
+  "sync"
   "github.com/sirupsen/logrus"
   "strconv"
   "encoding/json"
@@ -50,14 +53,49 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors, scriptPath string) (pid i
     logger.Info("ports ", j.Ports)
     logger.Info("target ", j.Target)
     cmd := exec.Command(scriptPath,"-t",j.Target,"-p",j.Ports,"-s",strconv.Itoa(j.Jobid),"-k",broker,"-d", "-e", enrich)
+
+    stdout, err := cmd.StdoutPipe()
+    if err != nil {
+        return 0, err
+    }
+    stderr, err := cmd.StderrPipe()
+    if err != nil {
+        return 0, err
+    }
+
     err = cmd.Start()
     if err != nil {
 		return 0, err
 	} else {
 		logger.Info("started new job with pid ", cmd.Process.Pid)
-		go cmd.Wait()
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go streamScanOutput(&wg, logger, j.Jobid, "stdout", stdout)
+		go streamScanOutput(&wg, logger, j.Jobid, "stderr", stderr)
+
+		// cmd.Wait() closes the pipes once the process exits, so it must
+		// not run until both readers above have finished draining them.
+		go func() {
+			wg.Wait()
+			cmd.Wait()
+		}()
+
 		return cmd.Process.Pid, nil
 	}
+}
+
+// streamScanOutput logs each line written by a scan subprocess to stdout/stderr
+// through the daemon's own logger, since exec.Cmd otherwise sends unset
+// Stdout/Stderr to /dev/null and all scan-script diagnostics are lost.
+func streamScanOutput(wg *sync.WaitGroup, logger *logrus.Logger, jobid int, stream string, r io.Reader) {
+    defer wg.Done()
+
+    scanner := bufio.NewScanner(r)
+    scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+    for scanner.Scan() {
+        logger.Infof("[job %d %s] %s", jobid, stream, scanner.Text())
+    }
 }
 
 func (scan *Scanner) CancelScan(job_pid int)(err error) {
