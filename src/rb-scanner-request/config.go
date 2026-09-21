@@ -9,40 +9,40 @@ import (
 
 // APIClientConfig stores the client api configuration
 type APIClientConfig struct {
-	Insecure   bool          // If true, skip SSL verification
-	URL        string        // API url
-	Hash       string        // Required hash to perform the registration
-    Auth_token string
+	Insecure   bool   // If true, skip SSL verification
+	URL        string // API url
+	Hash       string // Required hash to perform the registration
+	Auth_token string
 	Logger     *logrus.Entry // Logger to use
 	HTTPClient *http.Client  // HTTP Client to wrap
 }
 
 // structures used to read the scanner sensor config file created by chef
 type Sensors struct {
-    Sensors []Sensor `json:"sensors"`
+	Sensors []Sensor `json:"sensors"`
 }
 
 type Sensor struct {
-    Name   string `json:"name"`
-    Uuid   string `json:"uuid"`
-	ServiceProvider string `json:"service_provider"`
-    ServiceProviderUuid string `json:"service_provider_uuid"`
-    Namespace string `json:"namespace"`
-    NamespaceUuid string `json:"namespace_uuid"`
-    Organization string `json:"organization"`
-    OrganizationUuid string `json:"organization_uuid"`
-    building string `json:"building"`
-    buildingUuid string `json:building_uuid`
-	Campus string `json:"campus"`
-	CampusUuid string `json:"campus_uuid"`
-	Deployment string `json:"deployment"`
-	DeploymentUuid string `json:"deployment_uuid"`
-	Zone string `json:"zone"`
-	ZoneUuid string `json:"zone_uuid"`
-	Market string `json:"market"`
-	MarketUuid string `json:"market_uuid"`
-	Floor string `json:"floor"`
-	FloorUuid string `json:"floor_uuid"`
+	Name                string `json:"name"`
+	Uuid                string `json:"uuid"`
+	ServiceProvider     string `json:"service_provider"`
+	ServiceProviderUuid string `json:"service_provider_uuid"`
+	Namespace           string `json:"namespace"`
+	NamespaceUuid       string `json:"namespace_uuid"`
+	Organization        string `json:"organization"`
+	OrganizationUuid    string `json:"organization_uuid"`
+	Building            string `json:"building"`
+	BuildingUuid        string `json:"building_uuid"`
+	Campus              string `json:"campus"`
+	CampusUuid          string `json:"campus_uuid"`
+	Deployment          string `json:"deployment"`
+	DeploymentUuid      string `json:"deployment_uuid"`
+	Zone                string `json:"zone"`
+	ZoneUuid            string `json:"zone_uuid"`
+	Market              string `json:"market"`
+	MarketUuid          string `json:"market_uuid"`
+	Floor               string `json:"floor"`
+	FloorUuid           string `json:"floor_uuid"`
 }
 
 // DatabaseConfig stores the database configuration
@@ -64,29 +64,29 @@ type KafkaConfig struct {
 
 // info of a local job, created from a scan retrieved from the manager and stored in the local db
 type Job struct {
-	Id     int
-	Jobid  int
-	Target string
-	Ports  string
-	Status string
-	Pid    int
-	Uuid   string
-	ProfileType  int
+	Id          int
+	Jobid       int
+	Target      string
+	Ports       string
+	Status      string
+	Pid         int
+	Uuid        string
+	ProfileType int
 }
 
 // structure to process the scans retrieved from the manager with an api call
-type ScanResponse struct{
-	Query bool `json:"query"`
+type ScanResponse struct {
+	Query bool   `json:"query"`
 	Scans []Scan `json:"scans"`
 }
 
 // response structure for scan request
 type Scan struct {
-	Scan_id     int `json:"scan_id"`
+	Scan_id     int    `json:"scan_id"`
 	Target_addr string `json:"target_addr"`
 	Target_port string `json:"target_port"`
 	Status      string `json:"status"`
-	ProfileType int `json:"profile_type"`
+	ProfileType int    `json:"profile_type"`
 }
 
 // absolute paths of scripts used

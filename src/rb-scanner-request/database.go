@@ -19,17 +19,17 @@ package main
 import (
 	"database/sql"
 
-	"github.com/sirupsen/logrus"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/sirupsen/logrus"
 )
 
 const (
-	sqlCreateTable           = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255), ProfileType INTEGER DEFAULT 0)"
-	sqlInsertEntry           = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid, ProfileType) values (?, ?, ?, ?, ?, ?)"
-	sqlUpdatePid             = "UPDATE Scanjobs SET Pid = ? WHERE Id = ?"
-	sqlUpdateStatus          = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
+	sqlCreateTable  = "CREATE TABLE IF NOT EXISTS Scanjobs (Id INTEGER PRIMARY KEY AUTOINCREMENT, Jobid INTEGER, Target varchar(255), Ports varchar(255), Status varchar(255), Pid INTEGER DEFAULT 0, Uuid varchar(255), ProfileType INTEGER DEFAULT 0)"
+	sqlInsertEntry  = "INSERT INTO Scanjobs (Jobid, Target, Ports, Status, Uuid, ProfileType) values (?, ?, ?, ?, ?, ?)"
+	sqlUpdatePid    = "UPDATE Scanjobs SET Pid = ? WHERE Id = ?"
+	sqlUpdateStatus = "UPDATE Scanjobs SET Status = ? WHERE Id = ?"
 	// sqlSelectFinishedJob	 = "SELECT * FROM Scanjobs WHERE Jobid = ? Status == \"finished\""
-	sqlSelectNonFinishedJobs = "SELECT * FROM Scanjobs WHERE status != \"finished\""
+	sqlSelectNonFinishedJobs = "SELECT * FROM Scanjobs WHERE status NOT IN ('finished', 'failed')"
 	sqlSelectScanJob         = "SELECT * FROM Scanjobs WHERE Id = $1"
 	sqlUpdateToCancelling    = "UPDATE Scanjobs SET Status = \"cancelling\" WHERE Jobid = ?"
 )
@@ -55,19 +55,13 @@ func NewDatabase(config DatabaseConfig) *Database {
 	}
 
 	var err error
-	db.config.sqldb, err = sql.Open("sqlite3", db.config.dbFile + "?mode=rwc")
+	db.config.sqldb, err = sql.Open("sqlite3", db.config.dbFile+"?mode=rwc")
 	if err != nil {
 		logger.Fatal(err)
 	}
 
 	// Ping db to check if db is available
 	if err := db.config.sqldb.Ping(); err != nil {
-		logger.Error(err)
-		return nil
-	}
-
-	// Init connection with db
-	if _, err := db.config.sqldb.Begin(); err != nil {
 		logger.Error(err)
 		return nil
 	}
@@ -84,63 +78,64 @@ func NewDatabase(config DatabaseConfig) *Database {
 		return nil
 	}
 
-
 	return db
 }
 
 // function to retrieve all non-finished jobs
 func (db *Database) LoadJobs() (jobs []Job, err error) {
 	logger := db.config.Logger
-	logger.Info ("Retrieving all non-finished jobs..")
+	logger.Info("Retrieving all non-finished jobs..")
 	// get all non finished (new, running) jobs from the db an process them to return
 	rows, err := db.config.sqldb.Query(sqlSelectNonFinishedJobs)
-    if err != nil {
-		logger.Info ("Retrieving all non-finished jos: ERROR")
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		logger.Info("Retrieving all non-finished jos: ERROR")
+		return nil, err
+	}
+	defer rows.Close()
 
-    // Loop through results of the query
-    for rows.Next() {
-        var j Job
-        if err := rows.Scan(&j.Id, &j.Jobid, &j.Target, &j.Ports, &j.Status, &j.Pid, &j.Uuid, &j.ProfileType); err != nil {
-            return jobs, err
-        }
-        jobs = append(jobs, j)
-    }
-	logger.Info ("Jobs were retrieved from database")
-    if err = rows.Err(); err != nil {
-        return jobs, err
-    }
-    return jobs, nil
+	// Loop through results of the query
+	for rows.Next() {
+		var j Job
+		if err := rows.Scan(&j.Id, &j.Jobid, &j.Target, &j.Ports, &j.Status, &j.Pid, &j.Uuid, &j.ProfileType); err != nil {
+			return jobs, err
+		}
+		jobs = append(jobs, j)
+	}
+	logger.Info("Jobs were retrieved from database")
+	if err = rows.Err(); err != nil {
+		return jobs, err
+	}
+	return jobs, nil
 }
 
 func (db *Database) StoreJob(uuid string, s Scan) (err error) {
 	logger := db.config.Logger
 
-	logger.Info ("check if scan is already in database")
+	logger.Info("check if scan is already in database")
 
-	var scan_id int	//0:false, rest:true
+	var scan_id int //0:false, rest:true
 	//TODO: make this query row more explicit
-	db.config.sqldb.QueryRow("SELECT COUNT(*) FROM Scanjobs WHERE JobId = ? AND Status != ?", s.Scan_id, "finished").Scan(&scan_id)
-	
+	if err := db.config.sqldb.QueryRow("SELECT COUNT(*) FROM Scanjobs WHERE JobId = ? AND Uuid = ?", s.Scan_id, uuid).Scan(&scan_id); err != nil {
+		return err
+	}
+
 	var isAlreadyStored = scan_id > 0
 	var isStatusCancelling = s.Status == "cancelling"
-	logger.Info ("is Status cancelling? ", s.Status == "cancelling", isStatusCancelling)
+	logger.Info("is Status cancelling? ", s.Status == "cancelling", isStatusCancelling)
 
 	if !isAlreadyStored && !isStatusCancelling {
 		logger.Info("Storing new scan with id ", s.Scan_id, " and status: ", s.Status)
 		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "new", uuid, s.ProfileType); err != nil {
 			return err
 		}
-	} else if !isAlreadyStored {	// and status = cancelling
+	} else if !isAlreadyStored { // and status = cancelling
 		logger.Info("Scan is going to be be stored with cancel in order to set it to finished later")
 		if _, err = db.config.sqldb.Exec(sqlInsertEntry, s.Scan_id, s.Target_addr, s.Target_port, "cancelling", uuid, s.ProfileType); err != nil {
 			return err
 		}
-	} else if isStatusCancelling {	// and already stored
+	} else if isStatusCancelling { // and already stored
 		logger.Info("Scan has cancelling status. Updating to jobs database.")
-		if _, err = db.config.sqldb.Exec(sqlUpdateToCancelling, s.Scan_id); err != nil {
+		if _, err = db.config.sqldb.Exec("UPDATE Scanjobs SET Status = 'cancelling' WHERE Jobid = ? AND Uuid = ? AND Status NOT IN ('finished', 'failed')", s.Scan_id, uuid); err != nil {
 			return err
 		}
 	}
@@ -177,26 +172,26 @@ func (db *Database) Close() {
 
 // MigrateScanJobs migrates the ScanJobs table to add missing columns if necessary
 func migrateScanJobs(db *sql.DB) error {
-    rows, err := db.Query("SELECT name FROM pragma_table_info('Scanjobs')")
-    if err != nil {
-        return err
-    }
-    defer rows.Close()
+	rows, err := db.Query("SELECT name FROM pragma_table_info('Scanjobs')")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
 
-    columns := map[string]bool{}
-    for rows.Next() {
-        var name string
-        if err := rows.Scan(&name); err != nil {
-            return err
-        }
-        columns[name] = true
-    }
+	columns := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return err
+		}
+		columns[name] = true
+	}
 
-    if !columns["ProfileType"] {
-        if _, err := db.Exec("ALTER TABLE Scanjobs ADD COLUMN ProfileType varchar(255) DEFAULT '0'"); err != nil {
-            return err
-        }
-    }
+	if !columns["ProfileType"] {
+		if _, err := db.Exec("ALTER TABLE Scanjobs ADD COLUMN ProfileType varchar(255) DEFAULT '0'"); err != nil {
+			return err
+		}
+	}
 
-    return nil
+	return nil
 }

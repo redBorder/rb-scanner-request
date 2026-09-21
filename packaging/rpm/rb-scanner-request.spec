@@ -48,6 +48,7 @@ cp resources/bin/* %{buildroot}/usr/lib/redborder/bin
 cp resources/scripts/* %{buildroot}/usr/lib/redborder/scripts
 
 install -D -m 0644 resources/systemd/redborder-scanner.service %{buildroot}/usr/lib/systemd/system/redborder-scanner.service
+install -m 0644 resources/druid/network_topology.json %{buildroot}/usr/share/rb-scanner-request/network_topology.json
 
 %clean
 rm -rf %{buildroot}
@@ -63,12 +64,15 @@ systemctl daemon-reload
 /usr/bin/rb-scanner-request
 %defattr(644,root,root)
 /usr/lib/systemd/system/redborder-scanner.service
+/usr/share/rb-scanner-request/network_topology.json
 %defattr(755,root,root)
 /usr/lib/redborder/bin/rb_scan_vulnerabilities.sh
 /usr/lib/redborder/scripts/rb_scan_vulnerabilities.rb
 /usr/lib/redborder/bin/rb_host_discovery.sh
 /usr/lib/redborder/scripts/rb_host_discovery.rb
 /usr/lib/redborder/scripts/rb_net_discovery.rb
+/usr/lib/redborder/bin/rb_network_topology.sh
+/usr/lib/redborder/scripts/rb_network_topology.rb
 
 %doc
 

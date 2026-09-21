@@ -1,0 +1,28 @@
+{
+  "type": "kafka",
+  "spec": {
+    "dataSchema": {
+      "dataSource": "rb_network_topology",
+      "timestampSpec": { "column": "timestamp", "format": "posix" },
+      "dimensionsSpec": {
+        "dimensions": [
+          "scan_id", "scan_type", "schema_version", "snapshot_id", "completed_at",
+          "sensor_uuid", "sensor_name", "topology_json",
+          "organization_uuid", "namespace_uuid", "deployment_uuid"
+        ]
+      },
+      "metricsSpec": [{ "type": "count", "name": "events" }],
+      "granularitySpec": {
+        "type": "uniform", "segmentGranularity": "DAY",
+        "queryGranularity": "NONE", "rollup": false
+      }
+    },
+    "ioConfig": {
+      "type": "kafka", "topic": "rb_network_topology",
+      "consumerProperties": { "bootstrap.servers": "kafka.service:9092" },
+      "inputFormat": { "type": "json" },
+      "useEarliestOffset": true
+    },
+    "tuningConfig": { "type": "kafka" }
+  }
+}
