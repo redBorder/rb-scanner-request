@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
@@ -53,7 +55,18 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors, scriptPath string) (pid i
 	logger.Info("target ", j.Target)
 	cmd := exec.Command(scriptPath, "-t", j.Target, "-p", j.Ports, "-s", strconv.Itoa(j.Jobid), "-k", broker, "-d", "-e", enrich)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	// A topology scan writes its snapshot to stdout for upload; every other
+	// profile type only logs there.
+	var snapshot *bytes.Buffer
+	if j.ProfileType == TopologyProfileType {
+		snapshot = &bytes.Buffer{}
+		cmd.Stdout = snapshot
+	} else {
+		cmd.Stdout = os.Stdout
+	}
+	cmd.Stderr = os.Stderr
+
 	err = cmd.Start()
 	if err != nil {
 		return 0, err
@@ -69,6 +82,14 @@ func (scan *Scanner) StartScan(j Job, sensors Sensors, scriptPath string) (pid i
 			if waitErr := cmd.Wait(); waitErr != nil {
 				logger.Error("scan process failed: ", waitErr)
 				status = "error"
+			}
+			// Upload before the job is eligible to be reported finished, so a
+			// scan never acknowledges success with no topology behind it.
+			if status == "completed" && snapshot != nil {
+				if uploadErr := uploadTopology(j, snapshot.Bytes()); uploadErr != nil {
+					logger.Error("could not upload topology: ", uploadErr)
+					status = "error"
+				}
 			}
 			_, saveErr := db.config.sqldb.Exec("UPDATE Scanjobs SET Status = CASE WHEN Status = 'cancelling' THEN 'completed' ELSE ? END WHERE Id = ?", status, j.Id)
 			if saveErr != nil {
@@ -89,4 +110,13 @@ func (scan *Scanner) CancelScan(job_pid int) (err error) {
 		return nil
 	}
 	return err
+}
+
+// uploadTopology is separated so a missing API client is reported as a failed
+// scan rather than crashing the agent.
+func uploadTopology(j Job, snapshot []byte) error {
+	if apiClient == nil {
+		return errors.New("no API client available to upload the topology")
+	}
+	return apiClient.jobTopology(j, snapshot)
 }

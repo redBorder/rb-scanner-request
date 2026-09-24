@@ -62,6 +62,21 @@ type KafkaConfig struct {
 	Broker string `json:"kafka"`
 }
 
+// AuthConfig carries the manager API token chef writes alongside the sensors.
+// The topology upload creates inventory records, so that endpoint authenticates
+// where the plain status callbacks do not.
+type AuthConfig struct {
+	AuthToken string `json:"auth_token"`
+}
+
+// Profile types understood by this agent, matching Profile::PROFILE_TYPE in the
+// manager.
+const (
+	VulnerabilitiesProfileType = 0
+	HostDiscoveryProfileType   = 1
+	TopologyProfileType        = 2
+)
+
 // info of a local job, created from a scan retrieved from the manager and stored in the local db
 type Job struct {
 	Id          int

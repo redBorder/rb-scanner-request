@@ -17,11 +17,13 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 )
@@ -131,6 +133,53 @@ func (c *APIClient) jobFinished(j Job) (response ScanResponse, err error) {
 		err = errors.New("Manager rejected scan completion")
 	}
 	return res, err
+}
+
+// jobTopology hands a finished network topology snapshot to the manager, which
+// turns it into an inventory topology. Unlike the status callbacks this endpoint
+// authenticates, because it creates devices, interfaces and addresses.
+//
+// The URL is never logged: it carries the auth token.
+func (c *APIClient) jobTopology(j Job, snapshot []byte) error {
+	if len(c.config.Auth_token) == 0 {
+		return errors.New("no auth_token configured, cannot upload topology")
+	}
+	if len(snapshot) == 0 {
+		return errors.New("topology scan produced no snapshot")
+	}
+
+	c.config.Logger.Info("uploading topology for uuid ", j.Uuid, " job ", strconv.Itoa(j.Jobid))
+	api_url_request := c.config.URL + "/api/v1/sensors/" + j.Uuid + "/scans/" +
+		strconv.Itoa(j.Jobid) + "/topology?auth_token=" + url.QueryEscape(c.config.Auth_token)
+
+	httpReq, err := http.NewRequest("PUT", api_url_request, bytes.NewReader(snapshot))
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	rawResponse, err := c.config.HTTPClient.Do(httpReq)
+	if err != nil {
+		return err
+	}
+	defer rawResponse.Body.Close()
+
+	bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
+	if err != nil {
+		return err
+	}
+	if rawResponse.StatusCode >= 400 {
+		return errors.New("manager rejected topology with " + rawResponse.Status + ": " + string(bufferResponse))
+	}
+
+	res := ScanResponse{}
+	if err = json.Unmarshal(bufferResponse, &res); err != nil {
+		return err
+	}
+	if !res.Query {
+		return errors.New("manager did not accept the topology snapshot")
+	}
+	return nil
 }
 
 // func (c *APIClient) updatejob(scan_request_id int){

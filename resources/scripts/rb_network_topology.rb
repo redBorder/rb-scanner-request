@@ -120,6 +120,8 @@ if $PROGRAM_NAME == __FILE__
   OptionParser.new do |parser|
     parser.on('-t TARGET') { |value| options[:target] = value }
     parser.on('-s SCAN_ID') { |value| options[:scan_id] = value }
+    # Still accepted so the existing agent invocation keeps working, but the
+    # snapshot no longer travels through Kafka.
     parser.on('-k BROKER') { |value| options[:kafka] = value }
     parser.on('-e JSON') { |value| options[:enrichment] = value }
     parser.on('-p PORTS') { |_| }
@@ -133,13 +135,14 @@ if $PROGRAM_NAME == __FILE__
     payload = scanner.event(scanner.scan, options[:scan_id], enrichment)
     encoded = JSON.generate(payload)
     raise 'Encoded topology event exceeds 900,000 bytes' if encoded.bytesize > 900_000
-    require 'poseidon'
-    producer = Poseidon::Producer.new([options[:kafka]], 'rb_network_topology', required_acks: 1)
-    producer.send_messages([Poseidon::MessageToSend.new('rb_network_topology', encoded)])
+    # The event goes to the manager's API rather than to Kafka: an inventory
+    # topology is a stateful record, not a time series, so a round trip through
+    # Kafka and Druid would only add ingestion lag. The agent reads this from
+    # stdout and uploads it, so nothing else may be written there. Diagnostics
+    # belong on stderr.
+    $stdout.write(encoded)
   rescue StandardError => e
     warn "Topology discovery failed: #{e.message}"
     exit 1
-  ensure
-    producer.close if producer
   end
 end

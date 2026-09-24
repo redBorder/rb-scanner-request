@@ -18,6 +18,7 @@ var version string = "1.0"
 var goVersion = runtime.Version()
 
 var kafkaConfig *KafkaConfig
+var authConfig *AuthConfig
 var sensors Sensors
 var db *Database
 var scanner *Scanner
@@ -84,9 +85,10 @@ func initialize() {
 
 	apiClient = NewAPIClient(
 		APIClientConfig{
-			URL:      *URL,
-			Insecure: *insecure,
-			Logger:   logrus.NewEntry(logger),
+			URL:        *URL,
+			Insecure:   *insecure,
+			Auth_token: authConfig.AuthToken,
+			Logger:     logrus.NewEntry(logger),
 		},
 	)
 
@@ -156,11 +158,11 @@ func main() {
 				var scriptPath string
 
 				switch j.ProfileType {
-				case 0:
+				case VulnerabilitiesProfileType:
 					scriptPath = *vuls
-				case 1:
+				case HostDiscoveryProfileType:
 					scriptPath = networkmap_path
-				case 2:
+				case TopologyProfileType:
 					scriptPath = topology_path
 				default:
 					logger.Errorf("Unsupported profile type %d", j.ProfileType)
@@ -227,7 +229,16 @@ func readConfigFile(config string) {
 
 	byteValue, _ := ioutil.ReadAll(configFile)
 	json.Unmarshal(byteValue, &kafkaConfig)
+	json.Unmarshal(byteValue, &authConfig)
 	json.Unmarshal(byteValue, &sensors)
+
+	if authConfig == nil {
+		authConfig = &AuthConfig{}
+	}
+	if len(authConfig.AuthToken) == 0 {
+		// Never log the token itself.
+		logger.Warn("no auth_token in " + config + ": network topology uploads will be rejected")
+	}
 
 	for i := 0; i < len(sensors.Sensors); i++ {
 		logger.Info("Sensor Name: " + sensors.Sensors[i].Name)
