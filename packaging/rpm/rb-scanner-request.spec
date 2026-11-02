@@ -69,6 +69,8 @@ systemctl daemon-reload
 /usr/lib/redborder/bin/rb_host_discovery.sh
 /usr/lib/redborder/scripts/rb_host_discovery.rb
 /usr/lib/redborder/scripts/rb_net_discovery.rb
+/usr/lib/redborder/bin/rb_topology_discovery.sh
+/usr/lib/redborder/scripts/rb_topology_discovery.rb
 
 %doc
 

@@ -39,6 +39,7 @@ var (
 
 var vulnerabilities_path = "/usr/lib/redborder/bin/rb_scan_vulnerabilities.sh"
 var networkmap_path = "/usr/lib/redborder/bin/rb_host_discovery.sh"
+var topology_path = "/usr/lib/redborder/bin/rb_topology_discovery.sh"
 
 func init(){
 	debug = flag.Bool("debug", false, "Show debug info")
@@ -146,6 +147,8 @@ func main(){
 					scriptPath = vulnerabilities_path
 				case 1:
 					scriptPath = networkmap_path
+				case 2:
+					scriptPath = topology_path
 				default:
 					logger.Warnf("Unknown profile type %d, defaulting to vulnerabilities_path", j.ProfileType)
 					scriptPath = vulnerabilities_path
