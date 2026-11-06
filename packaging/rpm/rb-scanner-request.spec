@@ -71,6 +71,7 @@ systemctl daemon-reload
 /usr/lib/redborder/scripts/rb_net_discovery.rb
 /usr/lib/redborder/bin/rb_topology_discovery.sh
 /usr/lib/redborder/scripts/rb_topology_discovery.rb
+/usr/lib/redborder/scripts/rb_snmp_discovery.rb
 
 %doc
 

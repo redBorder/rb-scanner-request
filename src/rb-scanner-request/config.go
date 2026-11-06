@@ -25,6 +25,8 @@ type Sensors struct {
 type Sensor struct {
     Name   string `json:"name"`
     Uuid   string `json:"uuid"`
+	// SNMP credentials of the scanner. Never part of the enrichment sent to the scripts and Kafka
+	SNMP *SNMPConfig `json:"snmp,omitempty"`
 	ServiceProvider string `json:"service_provider"`
     ServiceProviderUuid string `json:"service_provider_uuid"`
     Namespace string `json:"namespace"`
@@ -43,6 +45,18 @@ type Sensor struct {
 	MarketUuid string `json:"market_uuid"`
 	Floor string `json:"floor"`
 	FloorUuid string `json:"floor_uuid"`
+}
+
+// SNMPConfig holds the SNMP credentials the topology scan uses to read LLDP/CDP neighbors
+type SNMPConfig struct {
+	Version       string `json:"version"`
+	Community     string `json:"community"`
+	SecurityLevel string `json:"security_level"`
+	Username      string `json:"username"`
+	AuthProtocol  string `json:"auth_protocol"`
+	AuthPassword  string `json:"auth_password"`
+	PrivProtocol  string `json:"priv_protocol"`
+	PrivPassword  string `json:"priv_password"`
 }
 
 // DatabaseConfig stores the database configuration
