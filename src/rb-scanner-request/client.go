@@ -20,9 +20,17 @@ import (
 	"crypto/tls"
 	"strconv"
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
   "encoding/json"
+)
+
+// A hung manager must not block the single polling loop, and a response is never that big
+const (
+	requestTimeout   = 30 * time.Second
+	maxResponseBytes = 10 << 20
 )
 
 // APIClient is an object that can communicate with the redborder API to get 
@@ -51,9 +59,9 @@ func NewAPIClient(config APIClientConfig) *APIClient {
 		if c.config.Insecure {
 			c.config.HTTPClient = &http.Client{Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}}
+			}, Timeout: requestTimeout}
 		} else {
-			c.config.HTTPClient = &http.Client{}
+			c.config.HTTPClient = &http.Client{Timeout: requestTimeout}
 		}
 	}
 
@@ -81,7 +89,7 @@ func (c *APIClient) Jobs(uuid string) (response ScanResponse, err error){
     return res, errors.New("Got status code: " + rawResponse.Status)
   }
 
-  bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
+  bufferResponse, err := ioutil.ReadAll(io.LimitReader(rawResponse.Body, maxResponseBytes))
   if err != nil {
 	return res, err
   }
@@ -113,7 +121,7 @@ func (c *APIClient) jobFinished(j Job) (response ScanResponse, err error){
     return res, errors.New("Got status code: " + rawResponse.Status)
   }
 
-  bufferResponse, err := ioutil.ReadAll(rawResponse.Body)
+  bufferResponse, err := ioutil.ReadAll(io.LimitReader(rawResponse.Body, maxResponseBytes))
   if err != nil {
 	return res, err
   }
